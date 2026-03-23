@@ -2,7 +2,7 @@ import pandas as pd
 import rqdatac
 from datetime import datetime
 
-def download_option_data(underlying='510300.XSHG', start_date='2024-01-01', output_dir='data'):
+def download_option_data(underlying='510300.XSHG', start_date='2018-10-01', output_dir='data'):
     """
     下载指定期权标的的历史行情及合约信息并保存到本地
     """
