@@ -26,6 +26,10 @@ def main():
     # Filter by listed_date (optional, but safe)
     # df_opts = df_opts[df_opts.listed_date <= '2026-03-23']
 
+    # Define the start date to get as much data as possible (2015 is when ETF options started)
+    start_date = '2015-01-01'
+    end_date = pd.Timestamp.today().strftime('%Y-%m-%d')
+
     for underlying, clean_name in underlying_map.items():
         print(f"Processing {underlying} -> {clean_name}")
         
@@ -36,25 +40,25 @@ def main():
             continue
             
         # Save instruments to parquet
-        inst_file = f"{clean_name}_instruments.parquet"
+        inst_file = f"data/{clean_name}_instruments.parquet"
         instruments.to_parquet(inst_file)
         print(f"  Saved {len(instruments)} instruments to {inst_file}")
         
         order_book_ids = instruments['order_book_id'].tolist()
         
         # Fetch historical daily prices for all these options
-        # To avoid memory issues or API timeouts, we can fetch in chunks if necessary,
-        # but 1d data for ~2000 contracts is usually small enough for a single call.
         try:
             prices = rqdatac.get_price(
                 order_book_ids, 
+                start_date=start_date,
+                end_date=end_date,
                 frequency='1d', 
                 fields=['open_interest', 'prev_close', 'contract_multiplier', 'limit_up', 'volume', 'low', 'strike_price', 'prev_settlement', 'high', 'limit_down', 'day_session_open', 'total_turnover', 'settlement', 'open', 'close']
             )
             
             if prices is not None and not prices.empty:
                 prices = prices.reset_index()
-                price_file = f"{clean_name}_historical_prices.parquet"
+                price_file = f"data/{clean_name}_historical_prices.parquet"
                 prices.to_parquet(price_file)
                 print(f"  Saved {len(prices)} rows of historical prices to {price_file}")
             else:

@@ -2,33 +2,49 @@ import pandas as pd
 import rqdatac
 from datetime import datetime
 
-def download_option_data(underlying='510300.XSHG', start_date='2018-10-01', output_dir='data'):
+def download_option_data(underlying='510300.XSHG', start_date='2015-01-01'):
     """
-    下载指定期权标的的历史行情及合约信息并保存到本地
+    下载指定标的的历史全量期权数据（包含已到期的合约）
     """
     try:
         # 1. 初始化
-        # 提示：如果没配置环境变量，请手动传入 init(username='...', password='...')
         rqdatac.init()
-        
-        # 2. 获取合约基本信息
-        print(f"正在拉取标的 {underlying} 的所有历史及当前挂牌合约信息...")
-        all_instruments = rqdatac.options.get_contracts(underlying)
-        if not all_instruments:
-            print("未找到有效合约，请检查标的代码。")
+
+        # 2. 获取全量期权合约信息并筛选标的
+        print(f"正在从全量合约库中筛选标的 {underlying} 的历史合约...")
+        # 获取所有期权合约的基础信息 DataFrame
+        all_options_df = rqdatac.all_instruments('Option')
+
+        # 筛选 underlying_order_book_id 匹配的合约
+        # 注意：不同版本字段名可能略有不同，通常为 underlying_order_book_id 或 underlying_symbol
+        mask = (all_options_df['underlying_order_book_id'] == underlying) | (all_options_df['underlying_symbol'] == underlying)
+        target_options_df = all_options_df[mask]
+
+        if target_options_df.empty:
+            print(f"未找到标的 {underlying} 的任何合约。")
             return
-            
-        # 修正：rqdatac.instruments 返回的是对象列表，需转换为 DataFrame
-        instruments_list = rqdatac.instruments(all_instruments)
-        # 将对象属性提取为字典列表
-        instruments_data = [inst.__dict__ for inst in instruments_list if inst is not None]
-        instruments_df = pd.DataFrame(instruments_data)
-        
-        if not instruments_df.empty:
-            instruments_df.to_csv(f"{underlying}_instruments.csv", index=False, encoding='utf-8-sig')
-            print(f"合约基础信息已保存至: {underlying}_instruments.csv")
+
+        all_instruments = target_options_df['order_book_id'].tolist()
+        print(f"共找到 {len(all_instruments)} 个历史及当前挂牌合约。")
+
+        # 保存合约信息
+        target_options_df.to_csv(f"{underlying}_all_instruments_info.csv", index=False, encoding='utf-8-sig')
+        print(f"全量合约信息已保存至: {underlying}_all_instruments_info.csv")
+
+        # 3. 下载全量历史行情
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        print(f"正在下载行情数据，起始日期: {start_date}...")
+
+        # 建议分批获取以避免大数据量导致超时或内存溢出
+        # 这里直接尝试批量获取，如果报错可以改为循环获取
+        price_data = rqdatac.get_price(all_instruments, start_date=start_date, end_date=end_date, frequency='1d')
+
+        if price_data is not None and not price_data.empty:
+            price_data.to_csv(f"{underlying}_full_history_prices.csv", encoding='utf-8-sig')
+            print(f"全量历史行情已保存至: {underlying}_full_history_prices.csv")
         else:
-            print("未能获取到有效的合约详细信息。")
+            print("未能获取到行情数据。")
+
 
         # 3. 下载历史行情 (获取最近一年的日线数据)
         end_date = datetime.now().strftime('%Y-%m-%d')
