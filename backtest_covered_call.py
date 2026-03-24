@@ -21,6 +21,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 from numba import njit
+import os
 
 # ── Constants ────────────────────────────────────────────────────────────────
 SPREAD_HALF    = 0.02        # ±2% → bid = mid*0.98, ask = mid*1.02
@@ -28,12 +29,15 @@ COMMISSION     = 5.0         # RMB per option leg
 EXERCISE_COST  = 2.0         # RMB when WE exercise as buyer
 ETF_SHARES     = 20_000      # equity leg (no cost modelled here)
 RISK_FREE      = 0.02        # annual risk-free rate for BS IV
-IV_THRESHOLD   = 0.20        # ATM IV above this → go further OTM (offset 4)
-
+IVR_HIGH       = 0.50        # IVR above this → go further OTM (offset 5)
+IVR_LOW        = 0.10        # IVR below this → go closer OTM (offset 3)
+IV_THRESHOLD   = 0.20        # Fallback ATM IV if calculation fails
+MIN_PUT_CREDIT = 50.0        # Minimum expected net credit (RMB) for put spread per contract
 # Data paths (relative to CWD = /home/hallo/Documents/rqsdk)
 PATH_INST   = "data/300ETF_instruments.parquet"
 PATH_OPT    = "data/300ETF_historical_prices.parquet"
 PATH_ETF    = "data/510300_1d.parquet"
+PATH_IV_CACHE = "data/30d_iv_cache.parquet"
 
 
 # ── Black-Scholes / IV helpers (numba-compiled) ───────────────────────────────
@@ -194,6 +198,74 @@ def get_atm_iv(opt, etf, entry_date, expiry_date):
     return iv
 
 
+def get_30d_iv(opt, etf, date):
+    """
+    Estimate the 30-day interpolated ATM IV for a given date.
+    Uses linear interpolation of variance: sigma_30^2 = (sigma1^2 * (T2-30) + sigma2^2 * (30-T1)) / (T2-T1)
+    """
+    date_norm = date.normalize()
+    if date_norm not in etf.index:
+        return IV_THRESHOLD
+    etf_close = float(etf.loc[date_norm, "close"])
+
+    # All calls for this date
+    day_calls = opt[
+        (opt["date"] == date) &
+        (opt["option_type"] == "C") &
+        (opt["close"] > 0)
+    ].copy()
+
+    if day_calls.empty:
+        return IV_THRESHOLD
+
+    # Group by expiry and find ATM strike for each
+    expiries = sorted(day_calls["maturity_date"].unique())
+    iv_by_expiry = {}
+
+    for exp in expiries:
+        exp_opts = day_calls[day_calls["maturity_date"] == exp].copy()
+        exp_opts["dist"] = (exp_opts["strike_price"] - etf_close).abs()
+        row = exp_opts.loc[exp_opts["dist"].idxmin()]
+        
+        dte = (exp - date).days
+        T = max(dte, 1) / 365.0
+        
+        iv = compute_iv(
+            float(row["close"]),
+            float(etf_close),
+            float(row["strike_price"]),
+            T,
+            RISK_FREE,
+            True
+        )
+        iv_by_expiry[dte] = iv
+
+    dtes = sorted(iv_by_expiry.keys())
+    if not dtes:
+        return IV_THRESHOLD
+
+    # Select T1 (<= 30) and T2 (> 30)
+    t1_candidates = [d for d in dtes if d <= 30]
+    t2_candidates = [d for d in dtes if d > 30]
+
+    if t1_candidates and t2_candidates:
+        t1 = t1_candidates[-1]
+        t2 = t2_candidates[0]
+        v1 = iv_by_expiry[t1]**2
+        v2 = iv_by_expiry[t2]**2
+        # Interpolate variance
+        v30 = (v1 * (t2 - 30) + v2 * (30 - t1)) / (t2 - t1)
+        return math.sqrt(max(0, v30))
+    elif t1_candidates:
+        # Only shorter expiries available
+        return iv_by_expiry[t1_candidates[-1]]
+    elif t2_candidates:
+        # Only longer expiries available
+        return iv_by_expiry[t2_candidates[0]]
+    
+    return IV_THRESHOLD
+
+
 # ── OTM strike selector ───────────────────────────────────────────────────────
 def get_otm_strikes(opt, etf, entry_date, expiry_date, option_type, offsets):
     """
@@ -329,21 +401,23 @@ def calc_leg_pnl(leg, opt, etf, expiry_date, side, is_buyer_at_expiry):
     }
 
 
-def calc_cycle_pnl(cyc, opt, etf, trailing_ivs):
+def calc_cycle_pnl(cyc, opt, etf, daily_ivs):
     """
     Run a full cycle and return a summary dict.
-    trailing_ivs is a list of ATM IVs from previous cycles for IV Rank calculation.
+    daily_ivs is a pd.Series of 30-day interpolated IVs indexed by date.
     """
     entry  = cyc["entry_date"]
     expiry = cyc["expiry_date"]
 
-    iv = get_atm_iv(opt, etf, entry, expiry)
+    # Use the pre-calculated 30-day IV for signal generation
+    iv = daily_ivs.get(entry, IV_THRESHOLD)
 
-    # 1. IV Rank calculation (using trailing cycles as proxy for 1 year = ~12 cycles)
-    if len(trailing_ivs) >= 3:
-        lookback_ivs = trailing_ivs[-12:] + [iv]
-        min_iv = min(lookback_ivs)
-        max_iv = max(lookback_ivs)
+    # 1. IV Rank calculation (using 252-day daily lookback = 1 year)
+    history = daily_ivs[daily_ivs.index <= entry]
+    if len(history) >= 20:   # Require at least some history
+        lookback = history.tail(252)
+        min_iv = lookback.min()
+        max_iv = lookback.max()
         if max_iv > min_iv:
             ivr = (iv - min_iv) / (max_iv - min_iv)
         else:
@@ -352,27 +426,50 @@ def calc_cycle_pnl(cyc, opt, etf, trailing_ivs):
         ivr = 0.5
 
     # IVR regime logic for Call legs
-    offset = 5 if ivr > 0.5 else 4
+    if ivr > IVR_HIGH:
+        offset = 5
+    elif ivr < IVR_LOW:
+        offset = 3
+    else:
+        offset = 4
 
-    # 2. Momentum Filter (20-day SMA)
-    etf_history = etf[etf.index <= entry]
+    # 2. Momentum Filter (Vol-Adjusted using 20-day ATR)
+    etf_history = etf[etf.index <= entry].copy()
     if len(etf_history) >= 20:
         sma20 = etf_history["close"].tail(20).mean()
+        # Calculate ATR
+        etf_history['TR'] = etf_history[['high', 'low', 'close']].apply(
+            lambda row: max(row['high'] - row['low'], 
+                            abs(row['high'] - etf_history['close'].shift(1).loc[row.name]) if pd.notna(etf_history['close'].shift(1).loc[row.name]) else 0,
+                            abs(row['low'] - etf_history['close'].shift(1).loc[row.name]) if pd.notna(etf_history['close'].shift(1).loc[row.name]) else 0),
+            axis=1
+        )
+        atr20 = etf_history['TR'].tail(20).mean()
     else:
         sma20 = etf_history["close"].mean()
+        atr20 = etf_history['close'].std() if len(etf_history) > 1 else 0.1
 
     etf_close_entry = float(etf.loc[entry.normalize(), "close"])
-    momentum_pct = (etf_close_entry / sma20) - 1.0
+    
+    # 3. Constant-Notional Sizing
+    # Target 400,000 RMB exposure per cycle (approx 10 contracts at 4.0 ETF price)
+    target_exposure = 400000.0
+    contract_size = 10000
+    num_contracts = round(target_exposure / (etf_close_entry * contract_size))
+    if num_contracts < 1:
+        num_contracts = 1
 
-    # Trend up breakout: if ETF > 20d SMA by > 2.5%, reduce call exposure
-    trend_up_breakout = (momentum_pct > 0.025)
+    momentum_dist = (etf_close_entry - sma20)
+    
+    # Trend up breakout: if ETF > 20d SMA by > 1.5 * ATR (volatility-adjusted breakout)
+    trend_up_breakout = (momentum_dist > 1.5 * atr20) if atr20 > 0 else False
 
     call_legs = get_otm_strikes(opt, etf, entry, expiry, "C", [offset, offset + 1])
     
     if ivr > 0.5:
-        put_offsets = [3, 5]
+        put_offsets = [3, 7]
     else:
-        put_offsets = [3, 4]
+        put_offsets = [3, 6]
     put_legs = get_otm_strikes(opt, etf, entry, expiry, "P", put_offsets)
 
     results = []
@@ -383,29 +480,51 @@ def calc_cycle_pnl(cyc, opt, etf, trailing_ivs):
     if not trend_up_breakout:
         legs_to_process.insert(0, (call_legs[0], "sell", f"Call Leg A (OTM{offset})"))
 
-    legs_to_process.append((put_legs[0], "sell", f"Put Sell   (OTM{put_offsets[0]})"))
-    legs_to_process.append((put_legs[1], "buy", f"Put Buy    (OTM{put_offsets[1]})"))
+    put_valid = False
+    if put_legs[0] is not None and put_legs[1] is not None:
+        p_sell_mid = float(put_legs[0]["close"])
+        p_buy_mid  = float(put_legs[1]["close"])
+        mult       = float(put_legs[0]["contract_multiplier"])
+        
+        p_sell_bid = p_sell_mid * (1 - SPREAD_HALF)
+        p_buy_ask  = p_buy_mid * (1 + SPREAD_HALF)
+        
+        exp_net_credit = (p_sell_bid - p_buy_ask) * mult - 2 * COMMISSION
+        if exp_net_credit >= MIN_PUT_CREDIT:
+            put_valid = True
+
+    if put_valid:
+        legs_to_process.append((put_legs[0], "sell", f"Put Sell   (OTM{put_offsets[0]})"))
+        legs_to_process.append((put_legs[1], "buy", f"Put Buy    (OTM{put_offsets[1]})"))
 
     for leg, side, label in legs_to_process:
         res = calc_leg_pnl(leg, opt, etf, expiry, side, side == "buy")
         if res is not None:
+            # Scale exactly by the number of contracts
+            res["premium_rmb"] *= num_contracts
+            res["exercise_pnl_rmb"] *= num_contracts
+            res["commission_rmb"] *= num_contracts
+            res["exercise_cost_rmb"] *= num_contracts
+            res["net_rmb"] *= num_contracts
+            res["mult"] *= num_contracts
+            
             res["label"] = label
             results.append(res)
 
     total_net = sum(r["net_rmb"] for r in results)
     total_premium = sum(r["premium_rmb"] for r in results)
 
-    etf_close_entry = float(etf.loc[entry.normalize(), "close"])
-
     return {
         "entry_date":     entry,
         "expiry_date":    expiry,
         "iv":             iv,
         "ivr":            ivr,
-        "momentum":       momentum_pct,
+        "atr_dist":       (momentum_dist / atr20) if atr20 > 0 else 0,
         "reduced_calls":  trend_up_breakout,
+        "skipped_puts":   not put_valid,
         "offset":         offset,
         "put_offsets":    put_offsets,
+        "num_contracts":  num_contracts,
         "etf_entry":      etf_close_entry,
         "legs":           results,
         "total_premium":  total_premium,
@@ -417,13 +536,30 @@ def calc_cycle_pnl(cyc, opt, etf, trailing_ivs):
 
 # ── Main backtest runner ───────────────────────────────────────────────────────
 def run_backtest(opt, etf):
+    if os.path.exists(PATH_IV_CACHE):
+        print(f"\nLoading pre-calculated 30-day IVs from {PATH_IV_CACHE}...")
+        daily_ivs = pd.read_parquet(PATH_IV_CACHE).iloc[:, 0]
+        # Ensure it's indexed by datetime
+        daily_ivs.index = pd.to_datetime(daily_ivs.index)
+    else:
+        print("\nPre-calculating daily 30-day IVs (this may take a moment)...")
+        trading_days = sorted(etf.index.unique())
+        iv_data = {}
+        for i, d in enumerate(trading_days):
+            if i % 100 == 0:
+                print(f"  Progress: {i}/{len(trading_days)}")
+            iv_data[d] = get_30d_iv(opt, etf, d)
+        daily_ivs = pd.Series(iv_data).sort_index()
+        # Save cache
+        os.makedirs(os.path.dirname(PATH_IV_CACHE), exist_ok=True)
+        daily_ivs.to_frame("iv").to_parquet(PATH_IV_CACHE)
+        print(f"  Saved IV cache to {PATH_IV_CACHE}")
+
     cycles  = get_cycles(opt, etf)
     results = []
-    trailing_ivs = []
     for cyc in cycles:
-        res = calc_cycle_pnl(cyc, opt, etf, trailing_ivs)
+        res = calc_cycle_pnl(cyc, opt, etf, daily_ivs)
         results.append(res)
-        trailing_ivs.append(res['iv'])
 
     # ── Per-cycle detail printout ──────────────────────────────────────────────
     print("\n" + "=" * 70)
@@ -432,9 +568,10 @@ def run_backtest(opt, etf):
 
     for res in results:
         print(f"\nCycle  {res['entry_date'].date()} → {res['expiry_date'].date()}"
-              f"   IV={res['iv']:.1%} (IVR={res['ivr']:.2f})  call_offset=OTM{res['offset']} put_offsets=OTM{res['put_offsets'][0]}/{res['put_offsets'][1]}"
-              f"   ETF-entry={res['etf_entry']:.4f} (mom={res['momentum']:+.1%})"
-              f"   {'[REDUCED CALLS]' if res['reduced_calls'] else ''}")
+              f"   IV={res['iv']:.1%} (IVR={res['ivr']:.2f})  calls=OTM{res['offset']} puts=OTM{res['put_offsets'][0]}/{res['put_offsets'][1]}"
+              f"   ETF={res['etf_entry']:.4f} ATR-dist={res['atr_dist']:+.2f} ({res['num_contracts']} contracts)"
+              f"   {'[REDUCED CALLS]' if res['reduced_calls'] else ''}"
+              f"{' [SKIPPED PUTS]' if res.get('skipped_puts') else ''}")
         hdr = f"  {'Leg':<25} {'side':>4} {'K':>7} {'exec_px':>8} {'prem':>8}  {'exer':>9}  {'net':>8}"
         print(hdr)
         print("  " + "-" * (len(hdr) - 2))

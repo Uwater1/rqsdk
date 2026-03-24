@@ -1,0 +1,640 @@
+
+Pre-calculating daily 30-day IVs (this may take a moment)...
+  Progress: 0/1749
+  Progress: 100/1749
+  Progress: 200/1749
+  Progress: 300/1749
+  Progress: 400/1749
+  Progress: 500/1749
+  Progress: 600/1749
+  Progress: 700/1749
+  Progress: 800/1749
+  Progress: 900/1749
+  Progress: 1000/1749
+  Progress: 1100/1749
+  Progress: 1200/1749
+  Progress: 1300/1749
+  Progress: 1400/1749
+  Progress: 1500/1749
+  Progress: 1600/1749
+  Progress: 1700/1749
+  Saved IV cache to data/30d_iv_cache.parquet
+
+======================================================================
+  备兑期权 BACKTEST — Cycle Detail
+======================================================================
+
+Cycle  2019-12-23 → 2020-01-22   IV=100.7% (IVR=1.00)  calls=OTM5 puts=OTM3/5   ETF=3.5394 ATR-dist=+1.18 (11 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM5)         sell   4.000   0.0514  5659.50       0.00   5604.50  [expires_worthless]
+  Call Leg B (OTM6)         sell   4.100   0.0226  2490.18       0.00   2435.18  [expires_worthless]
+                                        CYCLE TOTAL   8039.68
+
+Cycle  2020-01-23 → 2020-02-26   IV=96.3% (IVR=0.34)  calls=OTM4 puts=OTM3/4   ETF=3.5680 ATR-dist=-2.14 (11 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM4)         sell   3.900   0.1410 15512.42       0.00  15457.42  [expires_worthless]
+  Call Leg B (OTM5)         sell   4.000   0.0839  9227.68       0.00   9172.68  [expires_worthless]
+                                        CYCLE TOTAL  24630.10
+
+Cycle  2020-02-27 → 2020-03-25   IV=111.5% (IVR=0.41)  calls=OTM4 puts=OTM3/4   ETF=3.6350 ATR-dist=+1.05 (11 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM4)         sell   4.000   0.1307 14380.52       0.00  14325.52  [expires_worthless]
+  Call Leg B (OTM5)         sell   4.100   0.0769  8462.30       0.00   8407.30  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.400   0.0027   301.84  -10004.94  -9758.10  [assigned  ETF=3.3090 K=3.4000]
+  Put Buy    (OTM4)          buy   3.300   0.0019  -213.18       0.00   -268.18  [expires_worthless]
+                                        CYCLE TOTAL  12706.54
+
+Cycle  2020-03-26 → 2020-04-22   IV=107.9% (IVR=0.39)  calls=OTM4 puts=OTM3/4   ETF=3.2885 ATR-dist=-1.50 (12 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM4)         sell   3.600   0.1617 19404.00       0.00  19344.00  [expires_worthless]
+  Call Leg B (OTM5)         sell   3.700   0.1110 13324.08       0.00  13264.08  [expires_worthless]
+                                        CYCLE TOTAL  32608.08
+
+Cycle  2020-04-23 → 2020-05-27   IV=90.7% (IVR=0.31)  calls=OTM4 puts=OTM3/4   ETF=3.4126 ATR-dist=+1.27 (12 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM4)         sell   3.800   0.0758  9090.48       0.00   9030.48  [expires_worthless]
+  Call Leg B (OTM5)         sell   3.900   0.0381  4574.64       0.00   4514.64  [expires_worthless]
+                                        CYCLE TOTAL  13545.12
+
+Cycle  2020-05-28 → 2020-06-24   IV=107.5% (IVR=0.39)  calls=OTM4 puts=OTM3/4   ETF=3.4376 ATR-dist=-0.93 (12 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM4)         sell   3.800   0.0882 10584.00       0.00  10524.00  [expires_worthless]
+  Call Leg B (OTM5)         sell   3.900   0.0416  4986.24       0.00   4926.24  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.200   0.0026   317.52       0.00    257.52  [expires_worthless]
+  Put Buy    (OTM4)          buy   3.100   0.0019  -232.56       0.00   -292.56  [expires_worthless]
+                                        CYCLE TOTAL  15415.20
+
+Cycle  2020-06-29 → 2020-07-22   IV=105.2% (IVR=0.38)  calls=OTM4 puts=OTM3/4   ETF=3.6858 ATR-dist=+1.96 (11 contracts)   [REDUCED CALLS]
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg B (OTM5)         sell   4.100   0.0771  8483.86  -19659.56  -11230.70  [assigned  ETF=4.2787 K=4.1000]
+  Put Sell   (OTM3)         sell   3.400   0.0016   172.48       0.00    117.48  [expires_worthless]
+                                        CYCLE TOTAL  -11113.22
+
+Cycle  2020-07-23 → 2020-08-26   IV=94.4% (IVR=0.31)  calls=OTM4 puts=OTM3/4   ETF=4.2555 ATR-dist=+1.20 (9 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM4)         sell   4.600   0.2325 20921.04       0.00  20876.04  [expires_worthless]
+  Call Leg B (OTM5)         sell   4.700   0.1749 15743.70       0.00  15698.70  [expires_worthless]
+  Put Sell   (OTM3)         sell   4.000   0.0070   626.22       0.00    581.22  [expires_worthless]
+  Put Buy    (OTM4)          buy   3.900   0.0056  -504.90       0.00   -549.90  [expires_worthless]
+                                        CYCLE TOTAL  36606.06
+
+Cycle  2020-08-27 → 2020-09-23   IV=103.2% (IVR=0.35)  calls=OTM4 puts=OTM3/4   ETF=4.2850 ATR-dist=+0.12 (9 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM4)         sell   4.600   0.2293 20638.80       0.00  20593.80  [expires_worthless]
+  Call Leg B (OTM5)         sell   4.700   0.1677 15091.02       0.00  15046.02  [expires_worthless]
+  Put Sell   (OTM3)         sell   4.000   0.0027   246.96       0.00    201.96  [expires_worthless]
+  Put Buy    (OTM4)          buy   3.900   0.0022  -201.96       0.00   -246.96  [expires_worthless]
+                                        CYCLE TOTAL  35594.82
+
+Cycle  2020-09-24 → 2020-10-28   IV=91.0% (IVR=0.30)  calls=OTM4 puts=OTM3/4   ETF=4.1394 ATR-dist=-1.50 (10 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM4)         sell   4.500   0.1933 19325.60       0.00  19275.60  [expires_worthless]
+  Call Leg B (OTM5)         sell   4.600   0.1338 13377.00       0.00  13327.00  [expires_worthless]
+                                        CYCLE TOTAL  32602.60
+
+Cycle  2020-10-29 → 2020-11-25   IV=110.1% (IVR=0.38)  calls=OTM4 puts=OTM3/4   ETF=4.3287 ATR-dist=+0.89 (9 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM4)         sell   4.700   0.1879 16907.94       0.00  16862.94  [expires_worthless]
+  Call Leg B (OTM5)         sell   4.800   0.1237 11130.84       0.00  11085.84  [expires_worthless]
+                                        CYCLE TOTAL  27948.78
+
+Cycle  2020-11-26 → 2020-12-23   IV=102.7% (IVR=0.35)  calls=OTM4 puts=OTM3/4   ETF=4.4511 ATR-dist=+0.47 (9 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM4)         sell   4.800   0.2109 18980.64       0.00  18935.64  [expires_worthless]
+  Call Leg B (OTM5)         sell   4.900   0.1396 12559.68       0.00  12514.68  [expires_worthless]
+  Put Sell   (OTM3)         sell   4.200   0.0019   167.58       0.00    122.58  [expires_worthless]
+  Put Buy    (OTM4)          buy   4.100   0.0018  -165.24       0.00   -210.24  [expires_worthless]
+                                        CYCLE TOTAL  31362.66
+
+Cycle  2020-12-24 → 2021-01-27   IV=86.9% (IVR=0.28)  calls=OTM4 puts=OTM3/4   ETF=4.5305 ATR-dist=+0.15 (9 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM4)         sell   4.836   0.2078 18945.22  -14472.60   4427.62  [assigned  ETF=4.9947 K=4.8360]
+  Call Leg B (OTM5)         sell   4.935   0.1403 12796.96   -5444.99   7306.97  [assigned  ETF=4.9947 K=4.9350]
+                                        CYCLE TOTAL  11734.59
+
+Cycle  2021-01-28 → 2021-02-24   IV=93.2% (IVR=0.17)  calls=OTM4 puts=OTM3/4   ETF=4.8717 ATR-dist=-0.74 (8 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM4)         sell   5.182   0.2491 20192.35       0.00  20152.35  [expires_worthless]
+  Call Leg B (OTM5)         sell   5.250   0.2014 16111.20       0.00  16071.20  [expires_worthless]
+  Put Sell   (OTM3)         sell   4.737   0.0067   540.16       0.00    500.16  [expires_worthless]
+  Put Buy    (OTM4)          buy   4.639   0.0045  -363.78       0.00   -403.78  [expires_worthless]
+                                        CYCLE TOTAL  36319.92
+
+Cycle  2021-02-25 → 2021-03-24   IV=95.1% (IVR=0.08)  calls=OTM3 puts=OTM3/4   ETF=4.9558 ATR-dist=-0.60 (8 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   5.250   0.2625 21003.36       0.00  20963.36  [expires_worthless]
+  Call Leg B (OTM4)         sell   5.428   0.1465 11875.51       0.00  11835.51  [expires_worthless]
+  Put Sell   (OTM3)         sell   4.836   0.0075   611.65  -30253.12  -29681.48  [assigned  ETF=4.4628 K=4.8360]
+  Put Buy    (OTM4)          buy   4.800   0.0069  -554.88   26978.99  26368.11  [exercised ETF=4.4628 K=4.8000]
+                                        CYCLE TOTAL  29485.50
+
+Cycle  2021-03-25 → 2021-04-28   IV=84.1% (IVR=0.02)  calls=OTM3 puts=OTM3/4   ETF=4.4591 ATR-dist=-1.67 (9 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.700   0.2615 23531.76       0.00  23486.76  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.800   0.1891 17022.60       0.00  16977.60  [expires_worthless]
+                                        CYCLE TOTAL  40464.36
+
+Cycle  2021-04-29 → 2021-05-26   IV=91.6% (IVR=0.06)  calls=OTM3 puts=OTM3/4   ETF=4.6799 ATR-dist=+1.40 (9 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.900   0.2802 25216.38       0.00  25171.38  [expires_worthless]
+  Call Leg B (OTM4)         sell   5.000   0.1999 17992.80       0.00  17947.80  [expires_worthless]
+                                        CYCLE TOTAL  43119.18
+
+Cycle  2021-05-27 → 2021-06-23   IV=99.6% (IVR=0.11)  calls=OTM4 puts=OTM3/4   ETF=4.8373 ATR-dist=+2.48 (8 contracts)   [REDUCED CALLS]
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg B (OTM5)         sell   5.250   0.1814 14511.84       0.00  14471.84  [expires_worthless]
+  Put Sell   (OTM3)         sell   4.737   0.0035   285.97   -4409.55  -4163.58  [assigned  ETF=4.6826 K=4.7370]
+  Put Buy    (OTM4)          buy   4.700   0.0030  -236.64    1392.10   1099.46  [exercised ETF=4.6826 K=4.7000]
+                                        CYCLE TOTAL  11407.72
+
+Cycle  2021-06-24 → 2021-07-28   IV=88.2% (IVR=0.05)  calls=OTM3 puts=OTM3/4   ETF=4.6944 ATR-dist=-0.65 (9 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.900   0.3114 28029.96       0.00  27984.96  [expires_worthless]
+  Call Leg B (OTM4)         sell   5.000   0.2281 20532.96       0.00  20487.96  [expires_worthless]
+                                        CYCLE TOTAL  48472.92
+
+Cycle  2021-07-29 → 2021-08-25   IV=95.5% (IVR=0.12)  calls=OTM4 puts=OTM3/4   ETF=4.4383 ATR-dist=-2.22 (9 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM4)         sell   4.800   0.1428 12850.74       0.00  12805.74  [expires_worthless]
+  Call Leg B (OTM5)         sell   4.900   0.0889  7999.74       0.00   7954.74  [expires_worthless]
+                                        CYCLE TOTAL  20760.48
+
+Cycle  2021-08-26 → 2021-09-22   IV=90.1% (IVR=0.10)  calls=OTM4 puts=OTM3/4   ETF=4.4202 ATR-dist=-1.10 (9 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM4)         sell   4.800   0.1205 10848.60       0.00  10803.60  [expires_worthless]
+  Call Leg B (OTM5)         sell   4.900   0.0693  6235.74       0.00   6190.74  [expires_worthless]
+                                        CYCLE TOTAL  16994.34
+
+Cycle  2021-09-23 → 2021-10-27   IV=82.6% (IVR=0.06)  calls=OTM3 puts=OTM3/4   ETF=4.4546 ATR-dist=-0.47 (9 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.700   0.2496 22464.54       0.00  22419.54  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.800   0.1769 15920.10       0.00  15875.10  [expires_worthless]
+                                        CYCLE TOTAL  38294.64
+
+Cycle  2021-10-28 → 2021-11-24   IV=93.4% (IVR=0.12)  calls=OTM4 puts=OTM3/4   ETF=4.4772 ATR-dist=-0.50 (9 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM4)         sell   4.800   0.1867 16802.10       0.00  16757.10  [expires_worthless]
+  Call Leg B (OTM5)         sell   4.900   0.1196 10760.40       0.00  10715.40  [expires_worthless]
+                                        CYCLE TOTAL  27472.50
+
+Cycle  2021-11-25 → 2021-12-22   IV=94.8% (IVR=0.13)  calls=OTM4 puts=OTM3/4   ETF=4.5035 ATR-dist=+0.51 (9 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM4)         sell   4.900   0.1196 10760.40       0.00  10715.40  [expires_worthless]
+  Call Leg B (OTM5)         sell   5.000   0.0652  5865.30       0.00   5820.30  [expires_worthless]
+                                        CYCLE TOTAL  16535.70
+
+Cycle  2021-12-23 → 2022-01-26   IV=78.0% (IVR=0.03)  calls=OTM3 puts=OTM3/4   ETF=4.5415 ATR-dist=-0.00 (9 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.825   0.1673 15290.61       0.00  15245.61  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.923   0.1018  9306.94       0.00   9261.94  [expires_worthless]
+                                        CYCLE TOTAL  24507.55
+
+Cycle  2022-01-27 → 2022-02-23   IV=78.0% (IVR=0.04)  calls=OTM3 puts=OTM3/4   ETF=4.2494 ATR-dist=-2.55 (9 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.400   0.2573 23161.32       0.00  23116.32  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.431   0.2316 21166.79       0.00  21121.79  [expires_worthless]
+                                        CYCLE TOTAL  44238.11
+
+Cycle  2022-02-24 → 2022-03-23   IV=76.4% (IVR=0.03)  calls=OTM3 puts=OTM3/4   ETF=4.1621 ATR-dist=-1.40 (10 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.332   0.2177 22105.35       0.00  22055.35  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.400   0.1656 16562.00       0.00  16512.00  [expires_worthless]
+                                        CYCLE TOTAL  38567.35
+
+Cycle  2022-03-24 → 2022-04-27   IV=68.4% (IVR=0.00)  calls=OTM3 puts=OTM3/4   ETF=3.9012 ATR-dist=-0.77 (10 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.200   0.0953  9525.60       0.00   9475.60  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.300   0.0524  5243.00       0.00   5193.00  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.700   0.0052   519.40  -12681.29  -12211.89  [assigned  ETF=3.5732 K=3.7000]
+  Put Buy    (OTM4)          buy   3.600   0.0038  -377.40    2681.29   2233.89  [exercised ETF=3.5732 K=3.6000]
+                                        CYCLE TOTAL   4690.60
+
+Cycle  2022-04-28 → 2022-05-25   IV=84.2% (IVR=0.10)  calls=OTM3 puts=OTM3/4   ETF=3.5971 ATR-dist=-2.07 (11 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   3.800   0.1634 17970.26       0.00  17915.26  [expires_worthless]
+  Call Leg B (OTM4)         sell   3.900   0.1020 11221.98       0.00  11166.98  [expires_worthless]
+                                        CYCLE TOTAL  29082.24
+
+Cycle  2022-05-26 → 2022-06-22   IV=75.9% (IVR=0.05)  calls=OTM3 puts=OTM3/4   ETF=3.6678 ATR-dist=+0.41 (11 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   3.900   0.1323 14553.00   -4578.55   9919.45  [assigned  ETF=3.9416 K=3.9000]
+  Call Leg B (OTM4)         sell   4.000   0.0726  7987.98       0.00   7932.98  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.400   0.0020   215.60       0.00    160.60  [expires_worthless]
+                                        CYCLE TOTAL  18013.03
+
+Cycle  2022-06-23 → 2022-07-27   IV=73.7% (IVR=0.03)  calls=OTM3 puts=OTM3/4   ETF=4.0105 ATR-dist=+2.16 (10 contracts)   [REDUCED CALLS]
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg B (OTM4)         sell   4.400   0.0833  8330.00       0.00   8280.00  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.800   0.0034   343.00       0.00    293.00  [expires_worthless]
+  Put Buy    (OTM4)          buy   3.700   0.0023  -234.60       0.00   -284.60  [expires_worthless]
+                                        CYCLE TOTAL   8288.40
+
+Cycle  2022-07-28 → 2022-08-24   IV=83.8% (IVR=0.10)  calls=OTM4 puts=OTM3/4   ETF=3.9315 ATR-dist=-1.37 (10 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM4)         sell   4.300   0.0720  7203.00       0.00   7153.00  [expires_worthless]
+  Call Leg B (OTM5)         sell   4.400   0.0359  3586.80       0.00   3536.80  [expires_worthless]
+                                        CYCLE TOTAL  10689.80
+
+Cycle  2022-08-25 → 2022-09-28   IV=77.3% (IVR=0.06)  calls=OTM3 puts=OTM3/4   ETF=3.8415 ATR-dist=-0.46 (10 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.100   0.1313 13132.00       0.00  13082.00  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.200   0.0720  7203.00       0.00   7153.00  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.600   0.0027   274.40   -2313.78  -2089.38  [assigned  ETF=3.5769 K=3.6000]
+  Put Buy    (OTM4)          buy   3.500   0.0017  -173.40       0.00   -223.40  [expires_worthless]
+                                        CYCLE TOTAL  17922.22
+
+Cycle  2022-09-29 → 2022-10-26   IV=79.9% (IVR=0.08)  calls=OTM3 puts=OTM3/4   ETF=3.5778 ATR-dist=-2.49 (11 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   3.800   0.1388 15264.48       0.00  15209.48  [expires_worthless]
+  Call Leg B (OTM4)         sell   3.900   0.0746  8203.58       0.00   8148.58  [expires_worthless]
+                                        CYCLE TOTAL  23358.06
+
+Cycle  2022-10-27 → 2022-11-23   IV=81.9% (IVR=0.09)  calls=OTM3 puts=OTM3/4   ETF=3.3903 ATR-dist=-1.98 (12 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   3.600   0.1382 16581.60       0.00  16521.60  [expires_worthless]
+  Call Leg B (OTM4)         sell   3.700   0.0783  9396.24       0.00   9336.24  [expires_worthless]
+                                        CYCLE TOTAL  25857.84
+
+Cycle  2022-11-24 → 2022-12-28   IV=78.3% (IVR=0.06)  calls=OTM3 puts=OTM3/4   ETF=3.5061 ATR-dist=+0.28 (11 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   3.800   0.1075 11825.66       0.00  11770.66  [expires_worthless]
+  Call Leg B (OTM4)         sell   3.900   0.0624  6866.86       0.00   6811.86  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.300   0.0021   226.38       0.00    171.38  [expires_worthless]
+  Put Buy    (OTM4)          buy   3.200   0.0014  -157.08       0.00   -212.08  [expires_worthless]
+                                        CYCLE TOTAL  18541.82
+
+Cycle  2022-12-29 → 2023-01-30   IV=60.9% (IVR=0.00)  calls=OTM3 puts=OTM3/4   ETF=3.6035 ATR-dist=-0.96 (11 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   3.840   0.0880  9832.42   -9399.25    378.17  [assigned  ETF=3.9241 K=3.8400]
+  Call Leg B (OTM4)         sell   3.938   0.0426  4762.92       0.00   4707.92  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.347   0.0007    76.64       0.00     21.64  [expires_worthless]
+                                        CYCLE TOTAL   5107.74
+
+Cycle  2023-01-31 → 2023-02-22   IV=69.4% (IVR=0.06)  calls=OTM3 puts=OTM3/4   ETF=3.8812 ATR-dist=+2.80 (10 contracts)   [REDUCED CALLS]
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg B (OTM4)         sell   4.037   0.1510 15338.90       0.00  15288.90  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.741   0.0014   139.35       0.00     89.35  [expires_worthless]
+  Put Buy    (OTM4)          buy   3.700   0.0012  -122.40       0.00   -172.40  [expires_worthless]
+                                        CYCLE TOTAL  15205.85
+
+Cycle  2023-02-23 → 2023-03-22   IV=66.0% (IVR=0.04)  calls=OTM3 puts=OTM3/4   ETF=3.8252 ATR-dist=-0.45 (10 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   3.938   0.1837 18663.49       0.00  18613.49  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.000   0.1378 13778.80       0.00  13728.80  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.700   0.0021   205.80       0.00    155.80  [expires_worthless]
+  Put Buy    (OTM4)          buy   3.643   0.0016  -165.76       0.00   -215.76  [expires_worthless]
+                                        CYCLE TOTAL  32282.33
+
+Cycle  2023-03-23 → 2023-04-26   IV=57.4% (IVR=0.00)  calls=OTM3 puts=OTM3/4   ETF=3.7617 ATR-dist=+0.16 (11 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.000   0.0928 10208.66       0.00  10153.66  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.100   0.0452  4969.58       0.00   4914.58  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.500   0.0007    75.46       0.00     20.46  [expires_worthless]
+                                        CYCLE TOTAL  15088.70
+
+Cycle  2023-04-27 → 2023-05-24   IV=69.9% (IVR=0.09)  calls=OTM3 puts=OTM3/4   ETF=3.7198 ATR-dist=-1.89 (11 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.000   0.0574  6317.08       0.00   6262.08  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.100   0.0223  2457.84       0.00   2402.84  [expires_worthless]
+                                        CYCLE TOTAL   8664.92
+
+Cycle  2023-05-25 → 2023-06-28   IV=62.4% (IVR=0.04)  calls=OTM3 puts=OTM3/4   ETF=3.5882 ATR-dist=-2.42 (11 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   3.700   0.1751 19263.86       0.00  19208.86  [expires_worthless]
+  Call Leg B (OTM4)         sell   3.741   0.1426 15931.15       0.00  15876.15  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.446   0.0017   186.14       0.00    131.14  [expires_worthless]
+  Put Buy    (OTM4)          buy   3.347   0.0009  -102.57       0.00   -157.57  [expires_worthless]
+                                        CYCLE TOTAL  35058.58
+
+Cycle  2023-06-29 → 2023-07-26   IV=68.1% (IVR=0.08)  calls=OTM3 puts=OTM3/4   ETF=3.6012 ATR-dist=-0.18 (11 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   3.900   0.0441  4851.00       0.00   4796.00  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.000   0.0169  1854.16       0.00   1799.16  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.400   0.0003    32.34       0.00    -22.66  [expires_worthless]
+                                        CYCLE TOTAL   6572.50
+
+Cycle  2023-07-27 → 2023-08-23   IV=67.0% (IVR=0.07)  calls=OTM3 puts=OTM3/4   ETF=3.7067 ATR-dist=+1.34 (11 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.000   0.0487  5357.66       0.00   5302.66  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.100   0.0192  2112.88       0.00   2057.88  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.500   0.0004    43.12       0.00    -11.88  [expires_worthless]
+                                        CYCLE TOTAL   7348.66
+
+Cycle  2023-08-24 → 2023-09-27   IV=68.6% (IVR=0.08)  calls=OTM3 puts=OTM3/4   ETF=3.5378 ATR-dist=-2.95 (11 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   3.800   0.0832  9152.22       0.00   9097.22  [expires_worthless]
+  Call Leg B (OTM4)         sell   3.900   0.0440  4840.22       0.00   4785.22  [expires_worthless]
+                                        CYCLE TOTAL  13882.44
+
+Cycle  2023-09-28 → 2023-10-25   IV=68.9% (IVR=0.08)  calls=OTM3 puts=OTM3/4   ETF=3.5126 ATR-dist=-1.21 (11 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   3.800   0.0490  5390.00       0.00   5335.00  [expires_worthless]
+  Call Leg B (OTM4)         sell   3.900   0.0216  2371.60       0.00   2316.60  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.300   0.0007    75.46       0.00     20.46  [expires_worthless]
+                                        CYCLE TOTAL   7672.06
+
+Cycle  2023-10-26 → 2023-11-22   IV=72.6% (IVR=0.11)  calls=OTM4 puts=OTM3/4   ETF=3.3427 ATR-dist=-2.39 (12 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM4)         sell   3.700   0.0205  2457.84       0.00   2397.84  [expires_worthless]
+  Call Leg B (OTM5)         sell   3.800   0.0074   893.76       0.00    833.76  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.100   0.0005    58.80       0.00     -1.20  [expires_worthless]
+                                        CYCLE TOTAL   3230.40
+
+Cycle  2023-11-23 → 2023-12-27   IV=59.9% (IVR=0.02)  calls=OTM3 puts=OTM3/4   ETF=3.3875 ATR-dist=-0.54 (12 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   3.600   0.0807  9678.48       0.00   9618.48  [expires_worthless]
+  Call Leg B (OTM4)         sell   3.700   0.0345  4139.52       0.00   4079.52  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.100   0.0002    23.52       0.00    -36.48  [expires_worthless]
+                                        CYCLE TOTAL  13661.52
+
+Cycle  2023-12-28 → 2024-01-24   IV=52.6% (IVR=0.07)  calls=OTM3 puts=OTM3/4   ETF=3.2560 ATR-dist=+1.04 (12 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   3.525   0.0230  2822.74       0.00   2762.74  [expires_worthless]
+  Call Leg B (OTM4)         sell   3.622   0.0090  1105.07       0.00   1045.07  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.035   0.0010   120.12       0.00     60.12  [expires_worthless]
+  Put Buy    (OTM4)          buy   2.937   0.0006   -75.01       0.00   -135.01  [expires_worthless]
+                                        CYCLE TOTAL   3732.92
+
+Cycle  2024-01-25 → 2024-02-28   IV=42.1% (IVR=0.00)  calls=OTM3 puts=OTM3/4   ETF=3.1789 ATR-dist=+0.56 (13 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   3.300   0.0824 10714.34       0.00  10649.34  [expires_worthless]
+  Call Leg B (OTM4)         sell   3.329   0.0674  8952.69       0.00   8887.69  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.035   0.0052   689.67       0.00    624.67  [expires_worthless]
+  Put Buy    (OTM4)          buy   3.000   0.0040  -517.14       0.00   -582.14  [expires_worthless]
+                                        CYCLE TOTAL  19579.56
+
+Cycle  2024-02-29 → 2024-03-27   IV=51.4% (IVR=0.08)  calls=OTM3 puts=OTM3/4   ETF=3.3390 ATR-dist=+2.27 (12 contracts)   [REDUCED CALLS]
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg B (OTM4)         sell   3.525   0.0611  7483.27       0.00   7423.27  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.231   0.0053   648.63       0.00    588.63  [expires_worthless]
+  Put Buy    (OTM4)          buy   3.200   0.0038  -452.88       0.00   -512.88  [expires_worthless]
+                                        CYCLE TOTAL   7499.02
+
+Cycle  2024-03-28 → 2024-04-24   IV=52.5% (IVR=0.09)  calls=OTM3 puts=OTM3/4   ETF=3.3457 ATR-dist=-0.94 (12 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   3.600   0.0239  2869.44       0.00   2809.44  [expires_worthless]
+  Call Leg B (OTM4)         sell   3.700   0.0078   940.80       0.00    880.80  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.100   0.0013   152.88       0.00     92.88  [expires_worthless]
+  Put Buy    (OTM4)          buy   3.000   0.0011  -134.64       0.00   -194.64  [expires_worthless]
+                                        CYCLE TOTAL   3588.48
+
+Cycle  2024-04-25 → 2024-05-22   IV=42.6% (IVR=0.01)  calls=OTM3 puts=OTM3/4   ETF=3.3581 ATR-dist=-0.05 (12 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   3.600   0.0232  2787.12       0.00   2727.12  [expires_worthless]
+  Call Leg B (OTM4)         sell   3.700   0.0068   811.44       0.00    751.44  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.100   0.0006    70.56       0.00     10.56  [expires_worthless]
+                                        CYCLE TOTAL   3489.12
+
+Cycle  2024-05-23 → 2024-06-26   IV=40.9% (IVR=0.00)  calls=OTM3 puts=OTM3/4   ETF=3.4725 ATR-dist=+0.49 (12 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   3.600   0.0863 10360.56       0.00  10300.56  [expires_worthless]
+  Call Leg B (OTM4)         sell   3.622   0.0731  8960.70       0.00   8900.70  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.329   0.0027   336.33       0.00    276.33  [expires_worthless]
+  Put Buy    (OTM4)          buy   3.300   0.0021  -257.04       0.00   -317.04  [expires_worthless]
+                                        CYCLE TOTAL  19160.55
+
+Cycle  2024-06-27 → 2024-07-24   IV=48.3% (IVR=0.07)  calls=OTM3 puts=OTM3/4   ETF=3.3171 ATR-dist=-1.99 (12 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   3.600   0.0136  1634.64       0.00   1574.64  [expires_worthless]
+  Call Leg B (OTM4)         sell   3.700   0.0033   399.84       0.00    339.84  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.100   0.0006    70.56       0.00     10.56  [expires_worthless]
+                                        CYCLE TOTAL   1925.04
+
+Cycle  2024-07-25 → 2024-08-28   IV=40.8% (IVR=0.00)  calls=OTM3 puts=OTM3/4   ETF=3.2971 ATR-dist=-1.18 (12 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   3.500   0.0390  4680.48       0.00   4620.48  [expires_worthless]
+  Call Leg B (OTM4)         sell   3.600   0.0136  1634.64       0.00   1574.64  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.000   0.0009   105.84       0.00     45.84  [expires_worthless]
+                                        CYCLE TOTAL   6240.96
+
+Cycle  2024-08-29 → 2024-09-25   IV=44.7% (IVR=0.03)  calls=OTM3 puts=OTM3/4   ETF=3.1903 ATR-dist=-1.33 (13 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   3.400   0.0243  3159.52       0.00   3094.52  [expires_worthless]
+  Call Leg B (OTM4)         sell   3.500   0.0064   828.10       0.00    763.10  [expires_worthless]
+  Put Sell   (OTM3)         sell   2.950   0.0005    63.70       0.00     -1.30  [expires_worthless]
+  Put Buy    (OTM4)          buy   2.900   0.0004   -53.04       0.00   -118.04  [expires_worthless]
+                                        CYCLE TOTAL   3738.28
+
+Cycle  2024-09-26 → 2024-10-23   IV=49.3% (IVR=0.08)  calls=OTM3 puts=OTM3/4   ETF=3.4696 ATR-dist=+5.63 (12 contracts)   [REDUCED CALLS]
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg B (OTM4)         sell   3.800   0.0544  6526.80   -7819.50  -1352.70  [assigned  ETF=3.8652 K=3.8000]
+  Put Sell   (OTM3)         sell   3.200   0.0018   211.68       0.00    151.68  [expires_worthless]
+  Put Buy    (OTM4)          buy   3.100   0.0009  -110.16       0.00   -170.16  [expires_worthless]
+                                        CYCLE TOTAL  -1371.18
+
+Cycle  2024-10-24 → 2024-11-27   IV=51.8% (IVR=0.10)  calls=OTM3 puts=OTM3/4   ETF=3.8232 ATR-dist=+0.79 (10 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.100   0.0876  8761.20       0.00   8711.20  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.200   0.0604  6036.80       0.00   5986.80  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.600   0.0093   931.00       0.00    881.00  [expires_worthless]
+  Put Buy    (OTM4)          buy   3.500   0.0056  -561.00       0.00   -611.00  [expires_worthless]
+                                        CYCLE TOTAL  14968.00
+
+Cycle  2024-11-28 → 2024-12-25   IV=47.5% (IVR=0.06)  calls=OTM3 puts=OTM3/4   ETF=3.7727 ATR-dist=-1.33 (11 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.000   0.0686  7546.00       0.00   7491.00  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.100   0.0393  4322.78       0.00   4267.78  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.500   0.0029   323.40       0.00    268.40  [expires_worthless]
+  Put Buy    (OTM4)          buy   3.400   0.0016  -179.52       0.00   -234.52  [expires_worthless]
+                                        CYCLE TOTAL  11792.66
+
+Cycle  2024-12-26 → 2025-01-22   IV=47.8% (IVR=0.10)  calls=OTM3 puts=OTM3/4   ETF=3.8823 ATR-dist=+0.60 (10 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.100   0.0715  7154.00       0.00   7104.00  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.200   0.0404  4037.60       0.00   3987.60  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.600   0.0017   166.60       0.00    116.60  [expires_worthless]
+                                        CYCLE TOTAL  11208.20
+
+Cycle  2025-01-23 → 2025-02-26   IV=44.8% (IVR=0.05)  calls=OTM3 puts=OTM3/4   ETF=3.7146 ATR-dist=-0.34 (11 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.000   0.0466  5120.50       0.00   5065.50  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.100   0.0263  2889.04       0.00   2834.04  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.500   0.0042   463.54       0.00    408.54  [expires_worthless]
+  Put Buy    (OTM4)          buy   3.400   0.0024  -269.28       0.00   -324.28  [expires_worthless]
+                                        CYCLE TOTAL   7983.80
+
+Cycle  2025-02-27 → 2025-03-26   IV=44.3% (IVR=0.05)  calls=OTM3 puts=OTM3/4   ETF=3.8766 ATR-dist=+1.42 (10 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.100   0.0556  5556.60       0.00   5506.60  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.200   0.0275  2753.80       0.00   2703.80  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.600   0.0014   137.20       0.00     87.20  [expires_worthless]
+  Put Buy    (OTM4)          buy   3.500   0.0008   -81.60       0.00   -131.60  [expires_worthless]
+                                        CYCLE TOTAL   8166.00
+
+Cycle  2025-03-27 → 2025-04-23   IV=49.9% (IVR=0.12)  calls=OTM4 puts=OTM3/4   ETF=3.8385 ATR-dist=-0.19 (10 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM4)         sell   4.200   0.0125  1254.40       0.00   1204.40  [expires_worthless]
+  Call Leg B (OTM5)         sell   4.300   0.0059   588.00       0.00    538.00  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.600   0.0011   107.80       0.00     57.80  [expires_worthless]
+                                        CYCLE TOTAL   1800.20
+
+Cycle  2025-04-24 → 2025-05-28   IV=41.7% (IVR=0.01)  calls=OTM3 puts=OTM3/4   ETF=3.7003 ATR-dist=+0.02 (11 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.000   0.0235  2587.20       0.00   2532.20  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.100   0.0103  1131.90       0.00   1076.90  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.500   0.0058   636.02       0.00    581.02  [expires_worthless]
+  Put Buy    (OTM4)          buy   3.400   0.0040  -437.58       0.00   -492.58  [expires_worthless]
+                                        CYCLE TOTAL   3697.54
+
+Cycle  2025-05-29 → 2025-06-25   IV=25.4% (IVR=0.01)  calls=OTM3 puts=OTM3/4   ETF=3.7803 ATR-dist=-0.00 (11 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.009   0.0141  1587.40       0.00   1532.40  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.107   0.0068   760.63       0.00    705.63  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.520   0.0030   341.73       0.00    286.73  [expires_worthless]
+  Put Buy    (OTM4)          buy   3.423   0.0023  -263.89       0.00   -318.89  [expires_worthless]
+                                        CYCLE TOTAL   2205.87
+
+Cycle  2025-06-26 → 2025-07-23   IV=27.4% (IVR=0.04)  calls=OTM3 puts=OTM3/4   ETF=3.8851 ATR-dist=+2.38 (10 contracts)   [REDUCED CALLS]
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg B (OTM4)         sell   4.009   0.0499  5100.93   -8560.25  -3509.32  [assigned  ETF=4.0927 K=4.0090]
+  Put Sell   (OTM3)         sell   3.716   0.0035   360.77       0.00    310.77  [expires_worthless]
+  Put Buy    (OTM4)          buy   3.700   0.0029  -285.60       0.00   -335.60  [expires_worthless]
+                                        CYCLE TOTAL  -3534.15
+
+Cycle  2025-07-24 → 2025-08-27   IV=30.0% (IVR=0.07)  calls=OTM3 puts=OTM3/4   ETF=4.1181 ATR-dist=+3.90 (10 contracts)   [REDUCED CALLS]
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg B (OTM4)         sell   4.500   0.0199  1989.40       0.00   1939.40  [expires_worthless]
+  Put Sell   (OTM3)         sell   3.900   0.0058   578.20       0.00    528.20  [expires_worthless]
+  Put Buy    (OTM4)          buy   3.800   0.0034  -336.60       0.00   -386.60  [expires_worthless]
+                                        CYCLE TOTAL   2081.00
+
+Cycle  2025-08-28 → 2025-09-24   IV=36.7% (IVR=0.14)  calls=OTM4 puts=OTM3/4   ETF=4.4436 ATR-dist=+4.21 (9 contracts)   [REDUCED CALLS]
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg B (OTM5)         sell   4.900   0.0355  3192.84       0.00   3147.84  [expires_worthless]
+  Put Sell   (OTM3)         sell   4.303   0.0222  2047.39       0.00   2002.39  [expires_worthless]
+  Put Buy    (OTM4)          buy   4.300   0.0222 -2001.24       0.00  -2046.24  [expires_worthless]
+                                        CYCLE TOTAL   3103.99
+
+Cycle  2025-09-25 → 2025-10-22   IV=29.0% (IVR=0.05)  calls=OTM3 puts=OTM3/4   ETF=4.5762 ATR-dist=+1.27 (9 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.800   0.0405  3642.66       0.00   3597.66  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.900   0.0195  1755.18       0.00   1710.18  [expires_worthless]
+  Put Sell   (OTM3)         sell   4.300   0.0044   396.90       0.00    351.90  [expires_worthless]
+  Put Buy    (OTM4)          buy   4.200   0.0034  -302.94       0.00   -347.94  [expires_worthless]
+                                        CYCLE TOTAL   5311.80
+
+Cycle  2025-10-23 → 2025-11-26   IV=28.9% (IVR=0.05)  calls=OTM3 puts=OTM3/4   ETF=4.5937 ATR-dist=+0.42 (9 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.800   0.0597  5371.38       0.00   5326.38  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.900   0.0342  3078.18       0.00   3033.18  [expires_worthless]
+  Put Sell   (OTM3)         sell   4.300   0.0069   617.40       0.00    572.40  [expires_worthless]
+  Put Buy    (OTM4)          buy   4.200   0.0041  -367.20       0.00   -412.20  [expires_worthless]
+                                        CYCLE TOTAL   8519.76
+
+Cycle  2025-11-27 → 2025-12-24   IV=26.4% (IVR=0.03)  calls=OTM3 puts=OTM3/4   ETF=4.5050 ATR-dist=-1.42 (9 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.800   0.0120  1076.04       0.00   1031.04  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.900   0.0046   414.54       0.00    369.54  [expires_worthless]
+  Put Sell   (OTM3)         sell   4.303   0.0065   595.28       0.00    550.28  [expires_worthless]
+  Put Buy    (OTM4)          buy   4.300   0.0066  -596.70       0.00   -641.70  [expires_worthless]
+                                        CYCLE TOTAL   1309.16
+
+Cycle  2025-12-25 → 2026-01-28   IV=12.8% (IVR=0.00)  calls=OTM3 puts=OTM3/4   ETF=4.6454 ATR-dist=+1.33 (9 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.873   0.0138  1275.95       0.00   1230.95  [expires_worthless]
+  Call Leg B (OTM4)         sell   5.117   0.0036   334.82       0.00    289.82  [expires_worthless]
+  Put Sell   (OTM3)         sell   4.386   0.0119  1094.97       0.00   1049.97  [expires_worthless]
+  Put Buy    (OTM4)          buy   4.288   0.0060  -555.70       0.00   -600.70  [expires_worthless]
+                                        CYCLE TOTAL   1970.04
+
+Cycle  2026-01-29 → 2026-02-25   IV=16.6% (IVR=0.04)  calls=OTM3 puts=OTM3/4   ETF=4.7680 ATR-dist=+0.47 (8 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.873   0.0475  3901.26       0.00   3861.26  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.900   0.0408  3261.44       0.00   3221.44  [expires_worthless]
+  Put Sell   (OTM3)         sell   4.600   0.0178  1426.88       0.00   1386.88  [expires_worthless]
+  Put Buy    (OTM4)          buy   4.581   0.0163 -1339.55       0.00  -1379.55  [expires_worthless]
+                                        CYCLE TOTAL   7090.04
+
+Cycle  2026-02-26 → 2026-03-25   IV=11.4% (IVR=0.00)  calls=OTM3 puts=OTM3/4   ETF=4.7350 ATR-dist=+0.44 (8 contracts)   
+  Leg                       side       K  exec_px     prem       exer       net
+  -----------------------------------------------------------------------------
+  Call Leg A (OTM3)         sell   4.873   0.0200  1640.94       0.00   1600.94  [expires_worthless]
+  Call Leg B (OTM4)         sell   4.900   0.0155  1238.72       0.00   1198.72  [expires_worthless]
+  Put Sell   (OTM3)         sell   4.600   0.0236  1889.44  -13600.00  -11750.56  [assigned  ETF=4.4300 K=4.6000]
+  Put Buy    (OTM4)          buy   4.581   0.0203 -1666.06   12394.08  10672.02  [exercised ETF=4.4300 K=4.5810]
+                                        CYCLE TOTAL   1721.12
+
+======================================================================
+  SUMMARY
+======================================================================
+  Cycles traded          : 75
+  Winning cycles         : 72/75  (96%)
+  Avg gross premium/cyc  : 17295.64 RMB
+  Total net P&L          : 1185518.78 RMB
+  Cumulative by cycle    : ['8040', '32670', '45376', '77984', '91530', '106945', '95832', '132438', '168032', '200635', '228584', '259946', '271681', '308001', '337486', '377951', '421070', '432478', '480951', '501711', '518705', '557000', '584473', '601008', '625516', '669754', '708321', '713012', '742094', '760107', '768396', '779085', '797008', '820366', '846223', '864765', '869873', '885079', '917361', '932450', '941115', '976173', '982746', '990095', '1003977', '1011649', '1014879', '1028541', '1032274', '1051853', '1059352', '1062941', '1066430', '1085591', '1087516', '1093757', '1097495', '1096124', '1111092', '1122884', '1134093', '1142076', '1150242', '1152043', '1155740', '1157946', '1154412', '1156493', '1159597', '1164909', '1173428', '1174738', '1176708', '1183798', '1185519']
+
+  Chart saved → backtest_covered_call.png
