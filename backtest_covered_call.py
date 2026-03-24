@@ -329,30 +329,64 @@ def calc_leg_pnl(leg, opt, etf, expiry_date, side, is_buyer_at_expiry):
     }
 
 
-def calc_cycle_pnl(cyc, opt, etf):
+def calc_cycle_pnl(cyc, opt, etf, trailing_ivs):
     """
     Run a full cycle and return a summary dict.
+    trailing_ivs is a list of ATM IVs from previous cycles for IV Rank calculation.
     """
     entry  = cyc["entry_date"]
     expiry = cyc["expiry_date"]
 
-    iv     = get_atm_iv(opt, etf, entry, expiry)
-    offset = 4 if iv > IV_THRESHOLD else 3
+    iv = get_atm_iv(opt, etf, entry, expiry)
+
+    # 1. IV Rank calculation (using trailing cycles as proxy for 1 year = ~12 cycles)
+    if len(trailing_ivs) >= 3:
+        lookback_ivs = trailing_ivs[-12:] + [iv]
+        min_iv = min(lookback_ivs)
+        max_iv = max(lookback_ivs)
+        if max_iv > min_iv:
+            ivr = (iv - min_iv) / (max_iv - min_iv)
+        else:
+            ivr = 0.5
+    else:
+        ivr = 0.5
+
+    # IVR regime logic for Call legs
+    offset = 5 if ivr > 0.5 else 4
+
+    # 2. Momentum Filter (20-day SMA)
+    etf_history = etf[etf.index <= entry]
+    if len(etf_history) >= 20:
+        sma20 = etf_history["close"].tail(20).mean()
+    else:
+        sma20 = etf_history["close"].mean()
+
+    etf_close_entry = float(etf.loc[entry.normalize(), "close"])
+    momentum_pct = (etf_close_entry / sma20) - 1.0
+
+    # Trend up breakout: if ETF > 20d SMA by > 2.5%, reduce call exposure
+    trend_up_breakout = (momentum_pct > 0.025)
 
     call_legs = get_otm_strikes(opt, etf, entry, expiry, "C", [offset, offset + 1])
-    put_legs  = get_otm_strikes(opt, etf, entry, expiry, "P", [offset, offset + 1])
+    
+    if ivr > 0.5:
+        put_offsets = [3, 5]
+    else:
+        put_offsets = [3, 4]
+    put_legs = get_otm_strikes(opt, etf, entry, expiry, "P", put_offsets)
 
     results = []
-    labels  = [
-        f"Call Leg A (OTM{offset})",
-        f"Call Leg B (OTM{offset+1})",
-        f"Put Sell   (OTM{offset})",
-        f"Put Buy    (OTM{offset+1})",
+    
+    legs_to_process = [
+        (call_legs[1], "sell", f"Call Leg B (OTM{offset+1})")
     ]
-    legs  = [call_legs[0], call_legs[1], put_legs[0], put_legs[1]]
-    sides = ["sell", "sell", "sell", "buy"]
+    if not trend_up_breakout:
+        legs_to_process.insert(0, (call_legs[0], "sell", f"Call Leg A (OTM{offset})"))
 
-    for leg, side, label in zip(legs, sides, labels):
+    legs_to_process.append((put_legs[0], "sell", f"Put Sell   (OTM{put_offsets[0]})"))
+    legs_to_process.append((put_legs[1], "buy", f"Put Buy    (OTM{put_offsets[1]})"))
+
+    for leg, side, label in legs_to_process:
         res = calc_leg_pnl(leg, opt, etf, expiry, side, side == "buy")
         if res is not None:
             res["label"] = label
@@ -367,7 +401,11 @@ def calc_cycle_pnl(cyc, opt, etf):
         "entry_date":     entry,
         "expiry_date":    expiry,
         "iv":             iv,
+        "ivr":            ivr,
+        "momentum":       momentum_pct,
+        "reduced_calls":  trend_up_breakout,
         "offset":         offset,
+        "put_offsets":    put_offsets,
         "etf_entry":      etf_close_entry,
         "legs":           results,
         "total_premium":  total_premium,
@@ -380,7 +418,12 @@ def calc_cycle_pnl(cyc, opt, etf):
 # ── Main backtest runner ───────────────────────────────────────────────────────
 def run_backtest(opt, etf):
     cycles  = get_cycles(opt, etf)
-    results = [calc_cycle_pnl(cyc, opt, etf) for cyc in cycles]
+    results = []
+    trailing_ivs = []
+    for cyc in cycles:
+        res = calc_cycle_pnl(cyc, opt, etf, trailing_ivs)
+        results.append(res)
+        trailing_ivs.append(res['iv'])
 
     # ── Per-cycle detail printout ──────────────────────────────────────────────
     print("\n" + "=" * 70)
@@ -389,8 +432,9 @@ def run_backtest(opt, etf):
 
     for res in results:
         print(f"\nCycle  {res['entry_date'].date()} → {res['expiry_date'].date()}"
-              f"   IV={res['iv']:.1%}  offset=OTM{res['offset']}"
-              f"   ETF-entry={res['etf_entry']:.4f}")
+              f"   IV={res['iv']:.1%} (IVR={res['ivr']:.2f})  call_offset=OTM{res['offset']} put_offsets=OTM{res['put_offsets'][0]}/{res['put_offsets'][1]}"
+              f"   ETF-entry={res['etf_entry']:.4f} (mom={res['momentum']:+.1%})"
+              f"   {'[REDUCED CALLS]' if res['reduced_calls'] else ''}")
         hdr = f"  {'Leg':<25} {'side':>4} {'K':>7} {'exec_px':>8} {'prem':>8}  {'exer':>9}  {'net':>8}"
         print(hdr)
         print("  " + "-" * (len(hdr) - 2))

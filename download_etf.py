@@ -2,29 +2,52 @@ import rqdatac
 import pandas as pd
 import os
 
-def download_300etf_prices():
+def download_all_underlying_prices():
     # Initialize rqdatac
     rqdatac.init()
-    
-    # 510300.XSHG is the Huatai-PineBridge CSI 300 ETF
-    order_book_id = '510300.XSHG'
-    
-    # Get historical daily price data
-    # Starting from a reasonable date for 300ETF options (2019-12-23 launch)
-    start_date = '2019-01-01'
+
+    # Define the same mapping as in download_options.py
+    underlying_map = {
+        '510050.XSHG': '50ETF',
+        '510300.XSHG': '300ETF',
+        '510500.XSHG': '500ETF',
+        '588000.XSHG': 'STAR50',
+        '588080.XSHG': 'STAR50_E',
+        '159919.XSHE': '300ETF_SZ',
+        '159915.XSHE': 'ChiNextETF',
+        '159922.XSHE': '500ETF_SZ',
+        '159901.XSHE': 'SZ100ETF',
+        'HO': 'HO',
+        'IO': 'IO',
+        'MO': 'MO'
+    }
+
+    # Setting a broad start date to capture full history
+    start_date = '2015-01-01'
     end_date = pd.Timestamp.now().strftime('%Y-%m-%d')
-    
-    print(f"Downloading historical prices for {order_book_id} from {start_date} to {end_date}...")
-    df = rqdatac.get_price(order_book_id, start_date=start_date, end_date=end_date, frequency='1d')
-    
-    if df is not None and not df.empty:
-        # Save to parquet
-        output_path = 'data/510300_1d.parquet'
-        df.reset_index(inplace=True) # Ensure date is a column
-        df.to_parquet(output_path)
-        print(f"Successfully saved {len(df)} records to {output_path}")
-    else:
-        print("Failed to download price data.")
+
+    for symbol, clean_name in underlying_map.items():
+        print(f"Downloading historical prices for {symbol} ({clean_name})...")
+        try:
+            df = rqdatac.get_price(symbol, start_date=start_date, end_date=end_date, frequency='1d')
+            
+            if df is not None and not df.empty:
+                # Save to both Parquet (for analysis) and CSV (as requested)
+                parquet_path = f'data/{clean_name}_1d.parquet'
+                csv_path = f'data/{clean_name}_1d.csv'
+                
+                df.reset_index(inplace=True) # Ensure date/order_book_id is a column
+                
+                # Save Parquet
+                df.to_parquet(parquet_path)
+                # Save CSV
+                df.to_csv(csv_path, index=False, encoding='utf-8-sig')
+                
+                print(f"  Successfully saved {len(df)} records to {parquet_path} and {csv_path}")
+            else:
+                print(f"  No price data returned for {symbol}.")
+        except Exception as e:
+            print(f"  Error downloading {symbol}: {e}")
 
 if __name__ == "__main__":
-    download_300etf_prices()
+    download_all_underlying_prices()
