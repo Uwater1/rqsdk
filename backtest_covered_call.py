@@ -22,22 +22,49 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 from numba import njit
 import os
+import sys
 
 # ── Constants ────────────────────────────────────────────────────────────────
 SPREAD_HALF    = 0.02        # ±2% → bid = mid*0.98, ask = mid*1.02
-COMMISSION     = 5.0         # RMB per option leg
-EXERCISE_COST  = 2.0         # RMB when WE exercise as buyer
+COMMISSION     = 2.0         # RMB per option leg, muti legs are cheaper, so on averge set 2
+EXERCISE_COST  = 0.6         # RMB when WE exercise as buyer
 ETF_SHARES     = 20_000      # equity leg (no cost modelled here)
 RISK_FREE      = 0.02        # annual risk-free rate for BS IV
 IVR_HIGH       = 0.50        # IVR above this → go further OTM (offset 5)
 IVR_LOW        = 0.10        # IVR below this → go closer OTM (offset 3)
 IV_THRESHOLD   = 0.20        # Fallback ATM IV if calculation fails
-MIN_PUT_CREDIT = 50.0        # Minimum expected net credit (RMB) for put spread per contract
-# Data paths (relative to CWD = /home/hallo/Documents/rqsdk)
-PATH_INST   = "data/300ETF_instruments.parquet"
-PATH_OPT    = "data/300ETF_historical_prices.parquet"
-PATH_ETF    = "data/510300_1d.parquet"
-PATH_IV_CACHE = "data/30d_iv_cache.parquet"
+MIN_PUT_CREDIT = 5.0         # Minimum expected net credit (RMB) for put spread per contract
+# ── Underlying Config (Dynamic based on CLI) ───────────────────────────────────
+# Default: 300ETF
+ETF_NAME = "300ETF"
+PATH_INST = "data/300ETF_instruments.parquet"
+PATH_OPT  = "data/300ETF_historical_prices.parquet"
+PATH_ETF  = "data/510300_1d.parquet"
+PATH_IV_CACHE = "data/30d_iv_cache_300.parquet"
+
+def select_underlying(etf_choice):
+    global ETF_NAME, PATH_INST, PATH_OPT, PATH_ETF, PATH_IV_CACHE
+    if etf_choice == "50":
+        ETF_NAME = "50ETF"
+        PATH_INST = "data/50ETF_instruments.parquet"
+        PATH_OPT  = "data/50ETF_historical_prices.parquet"
+        PATH_ETF  = "data/50ETF_1d.parquet"
+        PATH_IV_CACHE = "data/30d_iv_cache_50.parquet"
+    elif etf_choice == "500":
+        ETF_NAME = "500ETF"
+        PATH_INST = "data/500ETF_instruments.parquet"
+        PATH_OPT  = "data/500ETF_historical_prices.parquet"
+        PATH_ETF  = "data/500ETF_1d.parquet"
+        PATH_IV_CACHE = "data/30d_iv_cache_500.parquet"
+    else:
+        # Default 300
+        ETF_NAME = "300ETF"
+        PATH_INST = "data/300ETF_instruments.parquet"
+        PATH_OPT  = "data/300ETF_historical_prices.parquet"
+        PATH_ETF  = "data/510300_1d.parquet"
+        PATH_IV_CACHE = "data/30d_iv_cache_300.parquet"
+    print(f"  Selected Underlying: {ETF_NAME}")
+    print(f"  ETF Data Path      : {PATH_ETF}")
 
 
 # ── Black-Scholes / IV helpers (numba-compiled) ───────────────────────────────
@@ -75,6 +102,8 @@ def compute_iv(market_price, S, K, T, r, is_call):
         else:
             hi = mid
     return (lo + hi) * 0.5
+
+
 
 
 # ── Data loading ──────────────────────────────────────────────────────────────
@@ -458,6 +487,11 @@ def calc_cycle_pnl(cyc, opt, etf, daily_ivs):
     num_contracts = round(target_exposure / (etf_close_entry * contract_size))
     if num_contracts < 1:
         num_contracts = 1
+        
+    # [V6] Volatility Sizing Reduction: If IVR > 0.8, reduce size by 30% to manage tail risk
+    if ivr > 0.8:
+        num_contracts = round(num_contracts * 0.7)
+        if num_contracts < 1: num_contracts = 1
 
     momentum_dist = (etf_close_entry - sma20)
     
@@ -466,11 +500,57 @@ def calc_cycle_pnl(cyc, opt, etf, daily_ivs):
 
     call_legs = get_otm_strikes(opt, etf, entry, expiry, "C", [offset, offset + 1])
     
-    if ivr > 0.5:
-        put_offsets = [3, 7]
+    # 4. Put Selection (Simplified V6: IVR-driven offsets + Momentum Filter + Narrow Gap)
+    # [V6] Momentum Filter: Only sell puts if ETF price is above 20d SMA (uptrend)
+    put_market_filter = (etf_close_entry > sma20)
+    
+    # Determine ranks based on IVR
+    if ivr > IVR_HIGH:
+        put_sell_rank = 4
     else:
-        put_offsets = [3, 6]
-    put_legs = get_otm_strikes(opt, etf, entry, expiry, "P", put_offsets)
+        put_sell_rank = 3
+    
+    # [V6] Narrow Gap: Exactly 2 strikes deeper (Max theoretical loss = 2 * strike_step)
+    put_buy_rank = put_sell_rank + 2
+
+    # Get Sell Put (clamped to OTM3+)
+    sell_put_list = get_otm_strikes(opt, etf, entry, expiry, "P", [put_sell_rank])
+    best_sell_put = sell_put_list[0]
+    
+    put_valid = False
+    put_legs = [None, None]
+    put_offsets = [0, 0]
+
+    if best_sell_put and put_market_filter:
+        # Get Buy Put: Try target rank, fallback to deepest available
+        all_otm = get_otm_strikes(opt, etf, entry, expiry, "P", list(range(1, 15)))
+        all_otm = [p for p in all_otm if p is not None]
+        
+        if len(all_otm) > put_sell_rank:
+            # Try target buy rank
+            best_buy_put = None
+            if len(all_otm) >= put_buy_rank:
+                best_buy_put = all_otm[put_buy_rank - 1]
+                actual_buy_rank = put_buy_rank
+            else:
+                # Fallback to deepest available
+                best_buy_put = all_otm[-1]
+                actual_buy_rank = len(all_otm)
+            
+            # Ensure they are different and buy is deeper
+            if best_buy_put and actual_buy_rank > put_sell_rank:
+                p_sell_mid = float(best_sell_put["close"])
+                p_buy_mid  = float(best_buy_put["close"])
+                mult       = float(best_sell_put["contract_multiplier"])
+                
+                p_sell_bid = p_sell_mid * (1 - SPREAD_HALF)
+                p_buy_ask  = p_buy_mid * (1 + SPREAD_HALF)
+                
+                exp_net_credit = (p_sell_bid - p_buy_ask) * mult - 2 * COMMISSION
+                if exp_net_credit >= MIN_PUT_CREDIT:
+                    put_legs = [best_sell_put, best_buy_put]
+                    put_offsets = [put_sell_rank, actual_buy_rank]
+                    put_valid = True
 
     results = []
     
@@ -479,19 +559,6 @@ def calc_cycle_pnl(cyc, opt, etf, daily_ivs):
     ]
     if not trend_up_breakout:
         legs_to_process.insert(0, (call_legs[0], "sell", f"Call Leg A (OTM{offset})"))
-
-    put_valid = False
-    if put_legs[0] is not None and put_legs[1] is not None:
-        p_sell_mid = float(put_legs[0]["close"])
-        p_buy_mid  = float(put_legs[1]["close"])
-        mult       = float(put_legs[0]["contract_multiplier"])
-        
-        p_sell_bid = p_sell_mid * (1 - SPREAD_HALF)
-        p_buy_ask  = p_buy_mid * (1 + SPREAD_HALF)
-        
-        exp_net_credit = (p_sell_bid - p_buy_ask) * mult - 2 * COMMISSION
-        if exp_net_credit >= MIN_PUT_CREDIT:
-            put_valid = True
 
     if put_valid:
         legs_to_process.append((put_legs[0], "sell", f"Put Sell   (OTM{put_offsets[0]})"))
@@ -601,68 +668,140 @@ def run_backtest(opt, etf):
     print(f"  Cumulative by cycle    : {[f'{v:.0f}' for v in cumulative]}")
 
     # ── Chart ─────────────────────────────────────────────────────────────────
-    labels    = [f"{r['entry_date'].strftime('%m/%d')}\n→{r['expiry_date'].strftime('%m/%d')}"
-                 for r in results]
-    x         = np.arange(len(results))
-    bar_colors = ["#4CAF50" if n >= 0 else "#F44336" for n in nets]
+    out_file = f"backtest_covered_call_{ETF_NAME}.png"
+    plot_backtest_results(results, etf, out_file)
 
-    fig, axes = plt.subplots(2, 1, figsize=(10, 7),
-                             gridspec_kw={"height_ratios": [3, 2]})
-    fig.suptitle("300ETF Backtest — Covered Call + Bull Put Spread (Beichu Qiquan)",
-                 fontsize=13, fontweight="bold")
+    return results
 
-    # ── Top panel: net P&L per cycle (bars) + cumulative (line) ──────────────
-    ax1 = axes[0]
-    ax1.bar(x, nets, color=bar_colors, alpha=0.85, label="Net P&L per cycle")
-    ax1.axhline(0, color="black", linewidth=0.8, linestyle="--")
-    ax2 = ax1.twinx()
-    ax2.plot(x, cumulative, marker="o", color="#1565C0",
-             linewidth=2, markersize=6, label="Cumulative P&L")
-    ax2.axhline(0, color="#1565C0", linewidth=0.4, linestyle=":")
-    ax1.set_xticks(x); ax1.set_xticklabels(labels, fontsize=8)
-    ax1.set_ylabel("Per-cycle Net P&L (RMB)")
-    ax2.set_ylabel("Cumulative P&L (RMB)", color="#1565C0")
-    ax2.tick_params(axis="y", labelcolor="#1565C0")
-    # combine legends
-    bars_h, bars_l = ax1.get_legend_handles_labels()
-    line_h, line_l = ax2.get_legend_handles_labels()
-    ax1.legend(bars_h + line_h, bars_l + line_l, loc="upper left", fontsize=8)
-    ax1.set_title("Per-cycle and Cumulative Net P&L", fontsize=10)
 
-    # ── Bottom panel: premium breakdown stacked bar ───────────────────────────
-    ax3 = axes[1]
-    leg_labels_all = set()
-    for res in results:
-        for r in res["legs"]:
-            leg_labels_all.add(r["label"].strip())
-    leg_labels_all = sorted(leg_labels_all)
+def plot_backtest_results(results, etf, out_path):
+    """
+    Advanced plotting for backtest results including P&L, Drawdown, and Leg Breakdown.
+    """
+    import numpy as np
+    import matplotlib.pyplot as plt
+    
+    # 1. Prepare Data
+    dates = [r['expiry_date'] for r in results]
+    nets = [r['total_net_rmb'] for r in results]
+    cumulative = np.cumsum(nets)
+    
+    # Calculate Drawdown
+    peaks = np.maximum.accumulate(cumulative)
+    drawdown = np.zeros_like(cumulative)
+    peak_mask = peaks > 0
+    drawdown[peak_mask] = (cumulative[peak_mask] - peaks[peak_mask]) / peaks[peak_mask]
+    max_dd = np.min(drawdown) if len(drawdown) > 0 else 0
+    
+    # Normalize ETF for overlay
+    etf_sub = etf.reindex(dates, method='ffill')['close']
+    etf_norm = (etf_sub / etf_sub.iloc[0] - 1) * 100 # % change
+    
+    # Calculate key metrics
+    total_net = cumulative[-1]
+    win_rate = sum(1 for n in nets if n > 0) / len(results) if results else 0
+    sharpe = np.sqrt(12) * np.mean(nets) / np.std(nets) if len(nets) > 1 and np.std(nets) > 0 else 0
+    
+    # 2. Setup Figure
+    try:
+        plt.style.use('seaborn-v0_8-muted')
+    except:
+        plt.style.use('ggplot')
+        
+    fig = plt.figure(figsize=(12, 12))
+    gs = fig.add_gridspec(3, 1, height_ratios=[4, 3, 2], hspace=0.3)
+    
+    COLOR_CUM = "#2980b9"
+    COLOR_BAR_UP = "#27ae60"
+    COLOR_BAR_DN = "#e74c3c"
+    COLOR_ETF = "#f39c12"
+    
+    # ── TOP PANEL ─────────────────────────────────────────────────────────────
+    ax1 = fig.add_subplot(gs[0])
+    x = np.arange(len(results))
+    bar_colors = [COLOR_BAR_UP if n >= 0 else COLOR_BAR_DN for n in nets]
+    ax1.bar(x, nets, color=bar_colors, alpha=0.3, label="Net P&L per Cycle")
+    ax1.plot(x, cumulative, color=COLOR_CUM, linewidth=2.5, marker='o', markersize=4, label="Cumulative P&L")
+    ax1.set_ylabel("P&L (RMB)", fontsize=10, fontweight='bold')
+    ax1.grid(True, linestyle='--', alpha=0.6)
+    
+    ax1_twin = ax1.twinx()
+    ax1_twin.plot(x, etf_norm, color=COLOR_ETF, linestyle='--', linewidth=1.5, alpha=0.7, label="Underlying ETF (%)")
+    ax1_twin.set_ylabel("ETF Return (%)", color=COLOR_ETF, fontsize=10, fontweight='bold')
+    ax1_twin.tick_params(axis='y', labelcolor=COLOR_ETF)
+    
+    cycle_labels = [r['expiry_date'].strftime('%y-%m') for r in results]
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(cycle_labels, rotation=45 if len(x) > 15 else 0, fontsize=8)
+    
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax1_twin.get_legend_handles_labels()
+    ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left', frameon=True, fontsize=9)
+    
+    summary_text = (
+        f" Total Net: {total_net/1e4:>6.2f}W\n"
+        f" Win Rate : {win_rate:>6.2%}\n"
+        f" Max DD   : {max_dd:>6.2%}\n"
+        f" Sharpe   : {sharpe:>6.2f}"
+    )
+    ax1.text(0.98, 0.05, summary_text, transform=ax1.transAxes, 
+             verticalalignment='bottom', horizontalalignment='right',
+             bbox=dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.8),
+             fontsize=10, family='monospace')
+    
+    ax1.set_title(f"Covered Call Strategy Performance vs {ETF_NAME}", fontsize=14, fontweight='bold', pad=15)
 
-    colors = ["#66BB6A", "#26A69A", "#EF5350", "#AB47BC"]
-    bottom = np.zeros(len(results))
-    for i, ll in enumerate(leg_labels_all):
-        vals = []
-        for res in results:
-            match = next((r for r in res["legs"] if r["label"].strip() == ll), None)
-            vals.append(match["net_rmb"] if match else 0.0)
-        ax3.bar(x, vals, bottom=bottom, color=colors[i % len(colors)],
-                alpha=0.80, label=ll, width=0.6)
-        bottom = bottom + np.array(vals)
+    # ── MIDDLE PANEL ──────────────────────────────────────────────────────────
+    ax2 = fig.add_subplot(gs[1])
+    leg_labels = sorted(list(set(l['label'] for res in results for l in res['legs'])))
+    palette = ["#1abc9c", "#3498db", "#9b59b6", "#34495e", "#f1c40f", "#e67e22"]
+    bottom_pos = np.zeros(len(results))
+    bottom_neg = np.zeros(len(results))
+    
+    for i, label in enumerate(leg_labels):
+        vals = np.array([next((l['net_rmb'] for l in res['legs'] if l['label'] == label), 0.0) for res in results])
+        pos_vals = np.where(vals > 0, vals, 0)
+        neg_vals = np.where(vals < 0, vals, 0)
+        ax2.bar(x, pos_vals, bottom=bottom_pos, color=palette[i % len(palette)], label=label, alpha=0.8)
+        ax2.bar(x, neg_vals, bottom=bottom_neg, color=palette[i % len(palette)], alpha=0.8)
+        bottom_pos += pos_vals
+        bottom_neg += neg_vals
 
-    ax3.axhline(0, color="black", linewidth=0.8, linestyle="--")
-    ax3.set_xticks(x); ax3.set_xticklabels(labels, fontsize=8)
-    ax3.set_ylabel("Net P&L (RMB)")
-    ax3.legend(loc="upper left", fontsize=7, ncol=2)
-    ax3.set_title("Per-leg Net P&L Breakdown", fontsize=10)
+    ax2.axhline(0, color='black', linewidth=0.8)
+    ax2.set_ylabel("Leg Contribution (RMB)", fontsize=10, fontweight='bold')
+    ax2.set_xticks(x)
+    ax2.set_xticklabels(cycle_labels, rotation=45 if len(x) > 15 else 0, fontsize=8)
+    ax2.legend(loc='upper right', frameon=True, fontsize=8, ncol=2)
+    ax2.grid(True, axis='y', linestyle=':', alpha=0.5)
+    ax2.set_title("Per-Leg Net P&L Contribution", fontsize=12, fontweight='bold')
+
+    # ── BOTTOM PANEL ──────────────────────────────────────────────────────────
+    ax3 = fig.add_subplot(gs[2])
+    ax3.fill_between(x, drawdown * 100, 0, color=COLOR_BAR_DN, alpha=0.3)
+    ax3.plot(x, drawdown * 100, color=COLOR_BAR_DN, linewidth=1.5, alpha=0.7)
+    ax3.set_ylabel("Drawdown (%)", fontsize=10, fontweight='bold')
+    ax3.set_ylim(min(drawdown * 100) * 1.2 if len(drawdown) > 0 else -10, 1)
+    ax3.grid(True, linestyle=':', alpha=0.5)
+    ax3.set_title("Strategy Drawdown Profile", fontsize=12, fontweight='bold')
+    ax3.set_xticks(x)
+    ax3.set_xticklabels(cycle_labels, rotation=45 if len(x) > 15 else 0, fontsize=8)
 
     plt.tight_layout()
-    out_path = "backtest_covered_call.png"
-    plt.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.savefig(out_path, dpi=200, bbox_inches='tight')
     print(f"\n  Chart saved → {out_path}")
+
 
     return results
 
 
 if __name__ == "__main__":
+    # Handle command line argument for ETF choice
+    choice = "300"
+    if len(sys.argv) > 1:
+        choice = sys.argv[1]
+    
+    select_underlying(choice)
+    
     inst, opt, etf = load_data()
     run_backtest(opt, etf)
 
