@@ -86,6 +86,18 @@ def _bs_price(S, K, T, r, sigma, is_call):
         return K * math.exp(-r * T) * _cdf(-d2) - S * _cdf(-d1)
 
 
+class Tee(object):
+    def __init__(self, *files):
+        self.files = files
+    def write(self, obj):
+        for f in self.files:
+            f.write(obj)
+            f.flush()
+    def flush(self):
+        for f in self.files:
+            f.flush()
+
+
 @njit(cache=True)
 def compute_iv(market_price, S, K, T, r, is_call):
     """Bisection IV solver; returns 0.5 as fallback."""
@@ -801,6 +813,11 @@ if __name__ == "__main__":
         choice = sys.argv[1]
     
     select_underlying(choice)
+    
+    # Redirect output to log file
+    log_file = f"backtest_covered_call_{ETF_NAME}.log"
+    f = open(log_file, 'w', encoding='utf-8')
+    sys.stdout = Tee(sys.stdout, f)
     
     inst, opt, etf = load_data()
     run_backtest(opt, etf)
