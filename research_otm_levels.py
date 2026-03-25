@@ -157,31 +157,20 @@ def filter_cycle(etf, entry_date):
     User-defined filter for trading cycles. 
     Return True to include the cycle, False to skip.
 
-    Using Combined Filter: Close < Upper BB (20, 2) AND 20-day ROC < 5%
+    Using Combined Filter: 14-day RSI < 66 AND Close < Upper Bollinger Band (20, 2)
     """
     idx = entry_date.normalize()
     if idx not in etf.index:
         return False
 
-    # Indicators should be pre-calculated on the 'etf' DataFrame for performance.
-    # Handle NaNs at the start of the series.
-    #sma20 = etf.loc[idx, "sma20"]
-    #rsi14 = etf.loc[idx, "rsi14"]
-
-    #if pd.isna(sma20) or pd.isna(rsi14):
-    #   return False # Not enough data to apply filter, skip cycle
-
-    #cond1 = etf.loc[idx, "close"] < sma20
-    #cond2 = rsi14 < 70
-    # (Close < Upper Bollinger Band (20, 2)) AND (20-day ROC < 5%)
+    rsi = etf.loc[idx, "rsi14"]
     bbu = etf.loc[idx, "bbu20"]
-    roc = etf.loc[idx, "roc20"]
 
-    if pd.isna(bbu) or pd.isna(roc):
+    if pd.isna(rsi) or pd.isna(bbu):
         return False
 
-    cond1 = etf.loc[idx, "close"] < bbu
-    cond2 = roc < 5.0
+    cond1 = rsi < 66.0
+    cond2 = etf.loc[idx, "close"] < bbu
 
     return cond1 and cond2
 
