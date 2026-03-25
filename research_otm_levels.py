@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import pandas_ta as ta
 import argparse
 from datetime import datetime, timedelta
 import os
@@ -143,12 +144,26 @@ def filter_cycle(etf, entry_date):
     """
     User-defined filter for trading cycles. 
     Return True to include the cycle, False to skip.
-    Example:
-        # Only trade when ETF is above 20-day SMA
-        sma20 = etf.loc[:entry_date, "close"].tail(20).mean()
-        return etf.loc[entry_date.normalize(), "close"] > sma20
+
+    Using Combined Filter c2: f1 (SMA20) OR f3 (RSI Overbought)
+    Returns True if Close < 20-day SMA OR 14-day RSI < 70
     """
-    return True
+    idx = entry_date.normalize()
+    if idx not in etf.index:
+        return False
+
+    # Indicators should be pre-calculated on the 'etf' DataFrame for performance.
+    # Handle NaNs at the start of the series.
+    sma20 = etf.loc[idx, "sma20"]
+    rsi14 = etf.loc[idx, "rsi14"]
+
+    if pd.isna(sma20) or pd.isna(rsi14):
+        return False # Not enough data to apply filter, skip cycle
+
+    cond1 = etf.loc[idx, "close"] < sma20
+    cond2 = rsi14 < 70
+
+    return cond1 or cond2
 
 def analyze_otm_levels(years=None):
     print(f"Analyzing {ETF_NAME}...")

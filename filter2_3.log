@@ -1,0 +1,18 @@
+Combination Rank 3: c7
+Filters: f20 AND f4
+Expanded logic: (Close < EMA20 + 1.0 * ATR(20)) AND (14-day RSI > 30)
+
+Average Cycles Traded: 55.7 / 75 (74.22%)
+Average Winrate: 98.39%
+Average Expected Return: 1569.44 RMB
+Average Max Loss: -188.18 RMB
+Total Annual Return Approximation: 13978.49
+
+--- Level Breakdown ---
+Option Type  OTM Level  Cycles Winrate  Expected Return  Max Loss
+       Call          0      49  93.88%          2547.85   -492.57
+       Call          1      57  98.25%          2298.98   -429.66
+       Call          2      57  98.25%          1828.82   -283.34
+       Call          3      57 100.00%          1312.28     37.38
+       Call          4      57 100.00%           880.42     31.32
+       Call          5      57 100.00%           548.30      7.80
