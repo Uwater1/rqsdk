@@ -23,12 +23,14 @@ import matplotlib.ticker as mtick
 from numba import njit
 import os
 import sys
+import pandas_ta as ta
 
 # ── Constants ────────────────────────────────────────────────────────────────
 SPREAD_HALF    = 0.02        # ±2% → bid = mid*0.98, ask = mid*1.02
 COMMISSION     = 2.0         # RMB per option leg, muti legs are cheaper, so on averge set 2
 EXERCISE_COST  = 0.6         # RMB when WE exercise as buyer
 ETF_SHARES     = 20_000      # equity leg (no cost modelled here)
+NUM_CONTRACTS  = 1           # Default number of contracts to trade per leg
 RISK_FREE      = 0.02        # annual risk-free rate for BS IV
 IVR_HIGH       = 0.50        # IVR above this → go further OTM (offset 5)
 IVR_LOW        = 0.10        # IVR below this → go closer OTM (offset 3)
@@ -145,6 +147,17 @@ def load_data():
             opt.drop(columns=[raw], inplace=True)
 
     etf = etf.set_index("date").sort_index()
+
+    # Calculate indicators
+    etf["rsi14"] = ta.rsi(etf["close"], length=14)
+    # Bollinger Bands
+    bb = ta.bbands(etf["close"], length=20, std=2)
+    # bb is a DataFrame with multiple columns, we need BBU_20_2.0
+    if bb is not None:
+        etf["bbu20"] = bb["BBU_20_2.0_2.0"]
+    else:
+        etf["bbu20"] = np.nan
+
     return inst, opt, etf
 
 
@@ -510,51 +523,34 @@ def calc_cycle_pnl(cyc, opt, etf, daily_ivs):
     else:
         ivr = 0.5
 
-    # IVR regime logic for Call legs
-    if ivr > IVR_HIGH:
-        offset = 5
-    elif ivr < IVR_LOW:
-        offset = 3
-    else:
-        offset = 4
+    # 2. RSI & Bollinger Band Filter
+    idx = entry.normalize()
+    rsi = etf.loc[idx, "rsi14"]
+    bbu = etf.loc[idx, "bbu20"]
+    etf_close_entry = float(etf.loc[idx, "close"])
 
-    # 2. Momentum Filter (Vol-Adjusted using 20-day ATR)
-    etf_history = etf[etf.index <= entry].copy()
-    if len(etf_history) >= 20:
-        sma20 = etf_history["close"].tail(20).mean()
-        # Calculate ATR
-        etf_history['TR'] = etf_history[['high', 'low', 'close']].apply(
-            lambda row: max(row['high'] - row['low'], 
-                            abs(row['high'] - etf_history['close'].shift(1).loc[row.name]) if pd.notna(etf_history['close'].shift(1).loc[row.name]) else 0,
-                            abs(row['low'] - etf_history['close'].shift(1).loc[row.name]) if pd.notna(etf_history['close'].shift(1).loc[row.name]) else 0),
-            axis=1
-        )
-        atr20 = etf_history['TR'].tail(20).mean()
-    else:
-        sma20 = etf_history["close"].mean()
-        atr20 = etf_history['close'].std() if len(etf_history) > 1 else 0.1
+    filter_passed = False
+    if pd.notna(rsi) and pd.notna(bbu):
+        # Filter: RSI < 66 AND Close < Upper Bollinger Band
+        filter_passed = (rsi < 66.0) and (etf_close_entry < bbu)
 
-    etf_close_entry = float(etf.loc[entry.normalize(), "close"])
-    
-    # 3. Constant-Notional Sizing
-    # Target 400,000 RMB exposure per cycle (approx 10 contracts at 4.0 ETF price)
-    target_exposure = 400000.0
-    contract_size = 10000
-    num_contracts = round(target_exposure / (etf_close_entry * contract_size))
-    if num_contracts < 1:
-        num_contracts = 1
+    # 3. Constant Sizing
+    num_contracts = NUM_CONTRACTS
         
-    # [V6] Volatility Sizing Reduction: If IVR > 0.8, reduce size by 30% to manage tail risk
-    if ivr > 0.8:
-        num_contracts = round(num_contracts * 0.7)
-        if num_contracts < 1: num_contracts = 1
-
-    momentum_dist = (etf_close_entry - sma20)
-    
-    # Trend up breakout: if ETF > 20d SMA by > 1.5 * ATR (volatility-adjusted breakout)
-    trend_up_breakout = (momentum_dist > 1.5 * atr20) if atr20 > 0 else False
-
-    call_legs = get_otm_strikes(opt, etf, entry, expiry, "C", [offset, offset + 1])
+    # Call Selection Driven by Filter
+    if filter_passed:
+        call_offsets = [2, 3]
+        call_legs = get_otm_strikes(opt, etf, entry, expiry, "C", call_offsets)
+        legs_to_process = [
+            (call_legs[0], "sell", "Call Leg A (OTM2)"),
+            (call_legs[1], "sell", "Call Leg B (OTM3)")
+        ]
+    else:
+        call_offsets = [4]
+        call_legs = get_otm_strikes(opt, etf, entry, expiry, "C", call_offsets)
+        legs_to_process = [
+            (call_legs[0], "sell", "Call Leg C (OTM4)")
+        ]
     
     # 4. Put Selection (V7: Long Put driven by research "Buyer Advantage")
     # Buy one put option at either closest ITM (level 0) or closest OTM (level 1)
@@ -562,17 +558,11 @@ def calc_cycle_pnl(cyc, opt, etf, daily_ivs):
     put_valid = (put_leg is not None)
     put_offsets = [PUT_BUY_LEVEL, PUT_BUY_LEVEL] # reuse list for logging
 
-    results = []
-    
-    legs_to_process = [
-        (call_legs[1], "sell", f"Call Leg B (OTM{offset+1})")
-    ]
-    if not trend_up_breakout:
-        legs_to_process.insert(0, (call_legs[0], "sell", f"Call Leg A (OTM{offset})"))
-
     if put_valid:
         legs_to_process.append((put_leg, "buy", f"Put Buy    (Level {PUT_BUY_LEVEL})"))
 
+    results = []
+    
     for leg, side, label in legs_to_process:
         res = calc_leg_pnl(leg, opt, etf, expiry, side, side == "buy")
         if res is not None:
@@ -595,10 +585,10 @@ def calc_cycle_pnl(cyc, opt, etf, daily_ivs):
         "expiry_date":    expiry,
         "iv":             iv,
         "ivr":            ivr,
-        "atr_dist":       (momentum_dist / atr20) if atr20 > 0 else 0,
-        "reduced_calls":  trend_up_breakout,
-        "skipped_puts":   not put_valid,
-        "offset":         offset,
+        "rsi":            rsi,
+        "bbu":            bbu,
+        "filter_passed":  filter_passed,
+        "call_offsets":   call_offsets,
         "put_offsets":    put_offsets,
         "num_contracts":  num_contracts,
         "etf_entry":      etf_close_entry,
@@ -643,11 +633,13 @@ def run_backtest(opt, etf):
     print("=" * 70)
 
     for res in results:
+        call_str = "+".join([f"OTM{o}" for o in res['call_offsets']])
+        total_legs_contracts = sum(res['num_contracts'] for _ in res['legs'])
+        unit_str = "contract" if res['num_contracts'] == 1 else "contracts"
         print(f"\nCycle  {res['entry_date'].date()} → {res['expiry_date'].date()}"
-              f"   IV={res['iv']:.1%} (IVR={res['ivr']:.2f})  calls=OTM{res['offset']} puts=Level{PUT_BUY_LEVEL}"
-              f"   ETF={res['etf_entry']:.4f} ATR-dist={res['atr_dist']:+.2f} ({res['num_contracts']} contracts)"
-              f"   {'[REDUCED CALLS]' if res['reduced_calls'] else ''}"
-              f"{' [SKIPPED PUTS]' if res.get('skipped_puts') else ''}")
+              f"   IV={res['iv']:.1%} (IVR={res['ivr']:.2f})  calls={call_str} puts=Level{PUT_BUY_LEVEL}"
+              f"   ETF={res['etf_entry']:.4f} RSI={res['rsi']:.1f} BBU={res['bbu']:.3f} "
+              f"(Total {total_legs_contracts} contracts) {'[FILTER PASS]' if res['filter_passed'] else '[FILTER FAIL]'}")
         hdr = f"  {'Leg':<25} {'side':>4} {'K':>7} {'exec_px':>8} {'prem':>8}  {'exer':>9}  {'net':>8}"
         print(hdr)
         print("  " + "-" * (len(hdr) - 2))

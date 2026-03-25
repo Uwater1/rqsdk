@@ -1,3 +1,4 @@
 rqsdk
 pyarrow
 lightgbm
+pandas_ta
