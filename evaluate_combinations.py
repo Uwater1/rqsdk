@@ -186,6 +186,7 @@ def run_backtest_with_filter(filter_func):
                 if not filter_func(etf, entry):
                     continue
             except Exception as e:
+                print(f"Error evaluating filter for entry date {entry}: {e}")
                 continue
 
             etf_expiry_dates = etf.index[etf.index <= expiry]
