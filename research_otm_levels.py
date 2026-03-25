@@ -54,6 +54,11 @@ def load_data():
             opt.drop(columns=[raw], inplace=True)
 
     etf = etf.set_index("date").sort_index()
+    
+    # Calculate indicators
+    etf["sma20"] = ta.sma(etf["close"], length=20)
+    etf["rsi14"] = ta.rsi(etf["close"], length=14)
+    
     return inst, opt, etf
 
 def get_cycles(opt, etf, years=None):
