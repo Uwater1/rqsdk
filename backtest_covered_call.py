@@ -34,6 +34,7 @@ IVR_HIGH       = 0.50        # IVR above this → go further OTM (offset 5)
 IVR_LOW        = 0.10        # IVR below this → go closer OTM (offset 3)
 IV_THRESHOLD   = 0.20        # Fallback ATM IV if calculation fails
 MIN_PUT_CREDIT = 5.0         # Minimum expected net credit (RMB) for put spread per contract
+PUT_BUY_LEVEL  = 1           # 0=closest ITM, 1=closest OTM
 # ── Underlying Config (Dynamic based on CLI) ───────────────────────────────────
 # Default: 300ETF
 ETF_NAME = "300ETF"
@@ -348,6 +349,49 @@ def get_otm_strikes(opt, etf, entry_date, expiry_date, option_type, offsets):
     return results
 
 
+def get_strike_by_level(opt, etf, entry_date, expiry_date, option_type, level):
+    """
+    Select strike by level:
+    level 0: Closest ITM (Strike >= Spot for Call, Strike <= Spot for Put)
+              (Note: For puts, 'ITM' in this context means strike >= spot, 
+               though strictly Puts are ITM when strike > spot)
+    level 1: Closest OTM (Strike < Spot for Puts, Strike > Spot for Calls)
+    """
+    etf_close = float(etf.loc[entry_date.normalize(), "close"])
+
+    day_opt = opt[
+        (opt["date"] == entry_date) &
+        (opt["maturity_date"] == expiry_date) &
+        (opt["option_type"] == option_type) &
+        (opt["close"] > 0)
+    ].copy()
+
+    if day_opt.empty:
+        return None
+
+    if option_type == "C":
+        if level == 0:
+            candidates = day_opt[day_opt["strike_price"] <= etf_close].sort_values("strike_price", ascending=False)
+            idx = 0
+        else:
+            candidates = day_opt[day_opt["strike_price"] > etf_close].sort_values("strike_price")
+            idx = level - 1
+    else:
+        # Puts
+        if level == 0:
+            # Research Level 0 for Puts is Strike >= Spot (Closest ITMish)
+            candidates = day_opt[day_opt["strike_price"] >= etf_close].sort_values("strike_price", ascending=True)
+            idx = 0
+        else:
+            # OTM Levels: Strike < Spot
+            candidates = day_opt[day_opt["strike_price"] < etf_close].sort_values("strike_price", ascending=False)
+            idx = level - 1
+
+    if idx >= 0 and idx < len(candidates):
+        return candidates.iloc[idx].to_dict()
+    return None
+
+
 
 # ── Per-cycle P&L ─────────────────────────────────────────────────────────────
 def calc_leg_pnl(leg, opt, etf, expiry_date, side, is_buyer_at_expiry):
@@ -512,57 +556,11 @@ def calc_cycle_pnl(cyc, opt, etf, daily_ivs):
 
     call_legs = get_otm_strikes(opt, etf, entry, expiry, "C", [offset, offset + 1])
     
-    # 4. Put Selection (Simplified V6: IVR-driven offsets + Momentum Filter + Narrow Gap)
-    # [V6] Momentum Filter: Only sell puts if ETF price is above 20d SMA (uptrend)
-    put_market_filter = (etf_close_entry > sma20)
-    
-    # Determine ranks based on IVR
-    if ivr > IVR_HIGH:
-        put_sell_rank = 4
-    else:
-        put_sell_rank = 3
-    
-    # [V6] Narrow Gap: Exactly 2 strikes deeper (Max theoretical loss = 2 * strike_step)
-    put_buy_rank = put_sell_rank + 2
-
-    # Get Sell Put (clamped to OTM3+)
-    sell_put_list = get_otm_strikes(opt, etf, entry, expiry, "P", [put_sell_rank])
-    best_sell_put = sell_put_list[0]
-    
-    put_valid = False
-    put_legs = [None, None]
-    put_offsets = [0, 0]
-
-    if best_sell_put and put_market_filter:
-        # Get Buy Put: Try target rank, fallback to deepest available
-        all_otm = get_otm_strikes(opt, etf, entry, expiry, "P", list(range(1, 15)))
-        all_otm = [p for p in all_otm if p is not None]
-        
-        if len(all_otm) > put_sell_rank:
-            # Try target buy rank
-            best_buy_put = None
-            if len(all_otm) >= put_buy_rank:
-                best_buy_put = all_otm[put_buy_rank - 1]
-                actual_buy_rank = put_buy_rank
-            else:
-                # Fallback to deepest available
-                best_buy_put = all_otm[-1]
-                actual_buy_rank = len(all_otm)
-            
-            # Ensure they are different and buy is deeper
-            if best_buy_put and actual_buy_rank > put_sell_rank:
-                p_sell_mid = float(best_sell_put["close"])
-                p_buy_mid  = float(best_buy_put["close"])
-                mult       = float(best_sell_put["contract_multiplier"])
-                
-                p_sell_bid = p_sell_mid * (1 - SPREAD_HALF)
-                p_buy_ask  = p_buy_mid * (1 + SPREAD_HALF)
-                
-                exp_net_credit = (p_sell_bid - p_buy_ask) * mult - 2 * COMMISSION
-                if exp_net_credit >= MIN_PUT_CREDIT:
-                    put_legs = [best_sell_put, best_buy_put]
-                    put_offsets = [put_sell_rank, actual_buy_rank]
-                    put_valid = True
+    # 4. Put Selection (V7: Long Put driven by research "Buyer Advantage")
+    # Buy one put option at either closest ITM (level 0) or closest OTM (level 1)
+    put_leg = get_strike_by_level(opt, etf, entry, expiry, "P", PUT_BUY_LEVEL)
+    put_valid = (put_leg is not None)
+    put_offsets = [PUT_BUY_LEVEL, PUT_BUY_LEVEL] # reuse list for logging
 
     results = []
     
@@ -573,8 +571,7 @@ def calc_cycle_pnl(cyc, opt, etf, daily_ivs):
         legs_to_process.insert(0, (call_legs[0], "sell", f"Call Leg A (OTM{offset})"))
 
     if put_valid:
-        legs_to_process.append((put_legs[0], "sell", f"Put Sell   (OTM{put_offsets[0]})"))
-        legs_to_process.append((put_legs[1], "buy", f"Put Buy    (OTM{put_offsets[1]})"))
+        legs_to_process.append((put_leg, "buy", f"Put Buy    (Level {PUT_BUY_LEVEL})"))
 
     for leg, side, label in legs_to_process:
         res = calc_leg_pnl(leg, opt, etf, expiry, side, side == "buy")
@@ -647,7 +644,7 @@ def run_backtest(opt, etf):
 
     for res in results:
         print(f"\nCycle  {res['entry_date'].date()} → {res['expiry_date'].date()}"
-              f"   IV={res['iv']:.1%} (IVR={res['ivr']:.2f})  calls=OTM{res['offset']} puts=OTM{res['put_offsets'][0]}/{res['put_offsets'][1]}"
+              f"   IV={res['iv']:.1%} (IVR={res['ivr']:.2f})  calls=OTM{res['offset']} puts=Level{PUT_BUY_LEVEL}"
               f"   ETF={res['etf_entry']:.4f} ATR-dist={res['atr_dist']:+.2f} ({res['num_contracts']} contracts)"
               f"   {'[REDUCED CALLS]' if res['reduced_calls'] else ''}"
               f"{' [SKIPPED PUTS]' if res.get('skipped_puts') else ''}")
