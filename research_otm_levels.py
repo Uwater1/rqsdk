@@ -59,6 +59,13 @@ def load_data():
     etf["sma20"] = ta.sma(etf["close"], length=20)
     etf["rsi14"] = ta.rsi(etf["close"], length=14)
     
+    # Bollinger Bands
+    bb = ta.bbands(etf["close"], length=20, std=2)
+    etf["bbu20"] = bb["BBU_20_2.0_2.0"]
+    
+    # ROC (Rate of Change) - returns percentage values (e.g., 5.0 for 5%)
+    etf["roc20"] = ta.roc(etf["close"], length=20)
+    
     return inst, opt, etf
 
 def get_cycles(opt, etf, years=None):
@@ -150,8 +157,7 @@ def filter_cycle(etf, entry_date):
     User-defined filter for trading cycles. 
     Return True to include the cycle, False to skip.
 
-    Using Combined Filter c2: f1 (SMA20) OR f3 (RSI Overbought)
-    Returns True if Close < 20-day SMA OR 14-day RSI < 70
+    Using Combined Filter: Close < Upper BB (20, 2) AND 20-day ROC < 5%
     """
     idx = entry_date.normalize()
     if idx not in etf.index:
@@ -159,16 +165,25 @@ def filter_cycle(etf, entry_date):
 
     # Indicators should be pre-calculated on the 'etf' DataFrame for performance.
     # Handle NaNs at the start of the series.
-    sma20 = etf.loc[idx, "sma20"]
-    rsi14 = etf.loc[idx, "rsi14"]
+    #sma20 = etf.loc[idx, "sma20"]
+    #rsi14 = etf.loc[idx, "rsi14"]
 
-    if pd.isna(sma20) or pd.isna(rsi14):
-        return False # Not enough data to apply filter, skip cycle
+    #if pd.isna(sma20) or pd.isna(rsi14):
+    #   return False # Not enough data to apply filter, skip cycle
 
-    cond1 = etf.loc[idx, "close"] < sma20
-    cond2 = rsi14 < 70
+    #cond1 = etf.loc[idx, "close"] < sma20
+    #cond2 = rsi14 < 70
+    # (Close < Upper Bollinger Band (20, 2)) AND (20-day ROC < 5%)
+    bbu = etf.loc[idx, "bbu20"]
+    roc = etf.loc[idx, "roc20"]
 
-    return cond1 or cond2
+    if pd.isna(bbu) or pd.isna(roc):
+        return False
+
+    cond1 = etf.loc[idx, "close"] < bbu
+    cond2 = roc < 5.0
+
+    return cond1 and cond2
 
 def analyze_otm_levels(years=None):
     print(f"Analyzing {ETF_NAME}...")
