@@ -260,7 +260,7 @@ for name, func, desc in combinations:
         total_annual_return = avg_er * avg_cycles / (len(cycles) / 12) # Approximation, assume ~1 cycle per month
 
         # Score it (we want 70% placement, which is 0.7 * 75 = 52.5 cycles)
-        if avg_cycles >= 50:
+        if avg_cycles >= 50: # MIN_AVG_CYCLES_FOR_SCORING
             score = (avg_winrate * 1000) + avg_er + (total_annual_return * 0.1) # Arbitrary scoring
             all_results.append({
                 "Name": name,
