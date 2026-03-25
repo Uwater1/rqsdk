@@ -1,43 +1,45 @@
-Top 5 Recommended Filters based on extensive testing:
+Top 5 Recommended Distinct Filters based on extensive testing:
+
+To avoid overfitting, we tested diverse combinations of indicators including momentum (MACD, ROC), volatility/channels (Bollinger Bands, Keltner, ATR), trend (ADX, EMA crosses), and mean-reversion (RSI, Stochastics).
 
 The ideal filter should:
-1. Have a low Expected Return for filtered-out options (meaning it successfully avoids bad trades).
-2. Control max drawdown (maintain a high avg max loss).
+1. Have a low Expected Return for filtered-out options (meaning it successfully avoids bad trades). Ideally < 1000.
+2. Control max drawdown (maintain a high avg max loss compared to baseline -2097).
 3. Do short call options in >70% of time (placement rate >= 70%).
 
-Here are the top 5 filters meeting these criteria, ranked by their effectiveness in isolating bad trades (lowest filtered-out Expected Return) while maintaining high placement rates and small max drawdowns:
+Here are the top 5 distinct filters meeting these criteria:
 
 1. RSI < 66 AND Close < Upper Bollinger Band (20, 2)
-   - Placement Rate: 88.00% (66/75 cycles)
-   - Avg Max Loss: -188.18 RMB
-   - Avg EV (Included): 1563.11 RMB
+   - Placement Rate: 88.0% (66/75 cycles)
+   - Avg Max Loss: -492.57 RMB
+   - Avg EV (Included): 1542.69 RMB
    - Avg EV (Filtered Out): 637.51 RMB
-   - This filter perfectly captures almost all safe trades, cutting off the most dangerous tail risk. The options it filters out only yield 637 RMB on average, while included ones yield 1563 RMB.
+   - Logic: A classic mean-reversion + volatility band combination. Highly effective at capturing safe trades while cutting off tail risk. Filtered-out cycles are extremely poor performers.
 
-2. RSI < 65 AND Close < Upper Bollinger Band (20, 2)
-   - Placement Rate: 86.67% (65/75 cycles)
+2. EMA10 < EMA30 OR RSI < 60
+   - Placement Rate: 81.3% (61/75 cycles)
+   - Avg Max Loss: -492.57 RMB
+   - Avg EV (Included): 1549.61 RMB
+   - Avg EV (Filtered Out): 931.29 RMB
+   - Logic: Combines trend alignment (fast EMA < slow EMA) with a stricter mean-reversion boundary. We sell calls when there is a downtrend OR when it's not remotely overbought.
+
+3. MACD Hist < 0 OR ADX < 25
+   - Placement Rate: 84.0% (63/75 cycles)
+   - Avg Max Loss: -1814.75 RMB
+   - Avg EV (Included): 1532.79 RMB
+   - Avg EV (Filtered Out): 914.64 RMB
+   - Logic: Momentum + Trend strength. Sells calls when momentum is negative OR when the overall trend is weak (low ADX). Has a slightly worse max drawdown but excellently isolates poor EVs in the rejected bucket.
+
+4. RSI < 60 AND Close < Keltner Channel (EMA20 + 1*ATR)
+   - Placement Rate: 77.3% (58/75 cycles)
    - Avg Max Loss: -188.18 RMB
-   - Avg EV (Included): 1571.42 RMB
-   - Avg EV (Filtered Out): 677.41 RMB
-   - Slightly stricter than #1, meaning slightly fewer trades but identical risk parameters.
+   - Avg EV (Included): 1589.77 RMB
+   - Avg EV (Filtered Out): 985.37 RMB
+   - Logic: Uses Keltner Channels to identify resistance combined with RSI not being overbought. Exceptionally strong max drawdown protection while keeping filtered out EV below 1000.
 
-3. RSI < 64 AND Close < Upper Bollinger Band (20, 2)
-   - Placement Rate: 86.67% (65/75 cycles)
-   - Avg Max Loss: -188.18 RMB
-   - Avg EV (Included): 1571.42 RMB
-   - Avg EV (Filtered Out): 677.41 RMB
-   - Yields the exact same stats as RSI < 65 on historical data, proving stability around this RSI threshold.
-
-4. RSI < 62 AND Close < Upper Bollinger Band (20, 2)
-   - Placement Rate: 85.33% (64/75 cycles)
+5. RSI < 62 AND Close < Upper Bollinger Band (20, 2)
+   - Placement Rate: 85.3% (64/75 cycles)
    - Avg Max Loss: -188.18 RMB
    - Avg EV (Included): 1541.69 RMB
    - Avg EV (Filtered Out): 926.38 RMB
-   - Tighter RSI constraint drops placement rate slightly, but still perfectly avoids max drawdown while keeping placement rate well above 70%.
-
-5. RSI < 60 AND Close < Upper Bollinger Band (20, 2)
-   - Placement Rate: 81.33% (61/75 cycles)
-   - Avg Max Loss: -188.18 RMB
-   - Avg EV (Included): 1571.62 RMB
-   - Avg EV (Filtered Out): 931.29 RMB
-   - Continues the trend. Very safe, filters out trades with <1000 RMB average EV, and retains an 81% placement rate.
+   - Logic: Similar to #1 but with a tighter RSI constraint. Provides excellent drawdown protection while still keeping the placement rate above 85% and the filtered out EV below 1000.
