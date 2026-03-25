@@ -162,7 +162,7 @@ combinations = [
     ("c16", lambda e, d: filters["f3"](e, d) and filters["f10"](e, d), "f3 AND f10"),
     # 3-filter combos
     ("c17", lambda e, d: filters["f11"](e, d) and filters["f12"](e, d) and filters["f16"](e, d), "f11 AND f12 AND f16"),
-    ("c18", lambda e, d: filters["f11"](e, d) or filters["f12"](e, d) and filters["f16"](e, d), "f11 OR f12 AND f16"),
+    ("c18", lambda e, d: filters["f11"](e, d) or (filters["f12"](e, d) and filters["f16"](e, d)), "f11 OR (f12 AND f16)"),
     ("c19", lambda e, d: filters["f20"](e, d) and filters["f4"](e, d) and filters["f3"](e, d), "f20 AND f4 AND f3"),
     ("c20", lambda e, d: filters["f12"](e, d) and filters["f16"](e, d) and filters["f20"](e, d), "f12 AND f16 AND f20"),
     # Add a few more with relaxed ORs to get higher trade counts
