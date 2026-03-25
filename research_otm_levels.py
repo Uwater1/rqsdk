@@ -187,7 +187,8 @@ def analyze_otm_levels(years=None):
             entry = cyc["entry_date"]
             expiry = cyc["expiry_date"]
             
-            if not filter_cycle(etf, entry):
+            # Apply cycle filter only to Short Call
+            if option_type == "C" and not filter_cycle(etf, entry):
                 continue
             
             etf_expiry_dates = etf.index[etf.index <= expiry]
@@ -206,19 +207,19 @@ def analyze_otm_levels(years=None):
                 mult = float(leg["contract_multiplier"])
                 entry_mid = float(leg["close"])
                 
-                exec_px = entry_mid * (1 - SPREAD_HALF)
-                premium_received_rmb = exec_px * mult
-                
                 intrinsic = 0.0
                 if option_type == "C":
+                    # Short Call (C): Receive premium, pay intrinsic
                     if etf_settle > K:
                         intrinsic = etf_settle - K
+                    exec_px = entry_mid * (1 - SPREAD_HALF)
+                    net_rmb = (exec_px - intrinsic) * mult - COMMISSION
                 else:
+                    # Long Put (P): Pay premium, receive intrinsic
                     if etf_settle < K:
                         intrinsic = K - etf_settle
-                        
-                exercise_pnl_rmb = -intrinsic * mult
-                net_rmb = premium_received_rmb + exercise_pnl_rmb - COMMISSION
+                    exec_px = entry_mid * (1 + SPREAD_HALF)
+                    net_rmb = (intrinsic - exec_px) * mult - COMMISSION
                 
                 level_metrics[level]["count"] += 1
                 level_metrics[level]["pnls"].append(net_rmb)
@@ -241,7 +242,7 @@ def analyze_otm_levels(years=None):
             max_loss = np.min(metrics["pnls"])
             
             results_data.append({
-                "Option Type": "Call" if option_type == "C" else "Put",
+                "Option Type": "Short Call" if option_type == "C" else "Long Put",
                 "OTM Level": level,
                 "Cycles": count,
                 "Winrate": f"{winrate:.2%}",
@@ -260,7 +261,7 @@ def analyze_otm_levels(years=None):
     print("="*95)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Research OTM Alpha for each level of options.")
+    parser = argparse.ArgumentParser(description="Research OTM Alpha (Short Call & Long Put) for each level of options.")
     parser.add_argument("-t", "--years", type=int, help="Limit analysis to the last N years (default: all)")
     parser.add_argument("-e", "--etf", type=str, choices=["50", "300", "500"], default="300", help="ETF choice: 50, 300, or 500 (default: 300)")
     args = parser.parse_args()
