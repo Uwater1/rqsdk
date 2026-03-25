@@ -1,0 +1,32 @@
+Top 5 Combined Filters based on evaluation of filter.txt:
+
+1. Rank 1: Combination c2 (f1 OR f3)
+   - Logic: (Close < 20-day SMA) OR (14-day RSI < 70)
+   - Rationale: High placement rate (92.89% of cycles) while still avoiding the very worst market conditions (either strong downtrend or extreme overbought).
+   - Metrics: Winrate 95.83%, Expected Return ~1509 RMB, Max Loss ~-1542 RMB.
+
+2. Rank 2: Combination c11 (f6 AND f9)
+   - Logic: (Close < Upper Bollinger Band (20, 2)) AND (20-day ROC < 5%)
+   - Rationale: Excellent reduction in Max Loss while maintaining a very high winrate. Places trades in ~82% of cycles. Avoids selling when price is riding upper bands and momentum is too strong.
+   - Metrics: Winrate 98.26%, Expected Return ~1496 RMB, Max Loss ~-188 RMB.
+
+3. Rank 3: Combination c7 (f20 AND f4)
+   - Logic: (Close < EMA20 + 1.0 * ATR(20)) AND (14-day RSI > 30)
+   - Rationale: Combines Keltner Channel resistance with avoiding oversold bounces. Extremely safe with high winrate and very low max loss. Trades in ~74% of cycles.
+   - Metrics: Winrate 98.39%, Expected Return ~1569 RMB, Max Loss ~-188 RMB.
+
+4. Rank 4: Combination c19 (f20 AND f4 AND f3)
+   - Logic: (Close < EMA20 + 1.0 * ATR(20)) AND (14-day RSI > 30) AND (14-day RSI < 70)
+   - Rationale: Same as Rank 3 but further constrains RSI to not be overbought. Performed identically to Rank 3 in backtests, showing the overbought condition is mostly covered by the Keltner condition.
+   - Metrics: Winrate 98.39%, Expected Return ~1569 RMB, Max Loss ~-188 RMB.
+
+5. Rank 5: Combination c21 ((f1 OR f11) AND f3)
+   - Logic: ((Close < 20-day SMA) OR (14-day ADX < 25)) AND (14-day RSI < 70)
+   - Rationale: Sells if either price is below SMA OR trend is weak, BUT only if RSI is not overbought. Trades in ~80% of cycles.
+   - Metrics: Winrate 95.11%, Expected Return ~1521 RMB, Max Loss ~-1542 RMB.
+
+---
+Conclusion:
+Combination c2 (f1 OR f3) is technically Rank 1 by absolute score due to trading the most cycles (71 out of 75), which maximizes total absolute return. However, Combination c11 (Rank 2) and c7 (Rank 3) offer vastly superior Max Loss characteristics (-188 RMB vs -1542 RMB) while still trading frequently enough (>70%).
+
+We will select Rank 1 (c2: f1 OR f3) as the default best combination in the script to strictly adhere to the scoring formula favoring the absolute highest total return and placement rate.
