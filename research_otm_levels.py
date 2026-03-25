@@ -169,7 +169,7 @@ def filter_cycle(etf, entry_date):
     if pd.isna(rsi) or pd.isna(bbu):
         return False
 
-    cond1 = rsi < 66.0
+    cond1 = rsi < 70.0
     cond2 = etf.loc[idx, "close"] < bbu
 
     return cond1 and cond2
