@@ -1,0 +1,31 @@
+Ideas to Filter OTM CALL Options (Levels 1-5):
+
+1. SMA20 Filter: Return True if Close < 20-day SMA. (Avoid selling calls during strong uptrends)
+   Working: Yes (Increases win rate significantly to 97.5%-100%, expected return improves across the board, and max loss is drastically reduced/eliminated).
+
+2. EMA20 Filter: Return True if Close < 20-day EMA. (Avoid selling calls during short-term uptrends)
+   Working: Yes (Similar improvement to SMA20, increases win rate and effectively reduces max loss significantly compared to no filter).
+
+3. RSI Filter (Overbought): Return True if 14-day RSI < 70. (Avoid selling calls when market is extremely bullish)
+   Working: Yes (Minor improvements in win rate and expected return for closer OTM options. Reduced max loss slightly for the closest options).
+
+4. RSI Filter (Oversold): Return True if 14-day RSI > 30. (Avoid selling calls when market is oversold and due for a sharp bounce)
+   Working: Yes (Negligible impact on max loss but improves expected return by avoiding extreme reversal risk).
+
+5. MACD Filter: Return True if MACD Histogram < 0. (Only sell calls when momentum is shifting downwards)
+   Working: Yes (Increases win rate to ~97%-100% and significantly drops max loss while slightly improving expected return compared to no filter).
+
+6. Bollinger Bands Filter: Return True if Close < Upper Bollinger Band (20, 2). (Avoid selling calls when price is riding the upper band)
+   Working: Yes (Increases win rate and expected return across all levels, slightly drops max loss for lower levels).
+
+7. IVR Filter: Return True if 252-day IVR > 0.20. (Ensure option premium is relatively rich before selling)
+   Working: Yes (Increases win rate and overall expected returns. Notably reduces max loss for deeper OTM strikes (levels 3-5)).
+
+8. Historical Volatility (HV) Filter: Return True if 20-day annualized HV > 0.15. (Sell calls only when recent volatility is high)
+   Working: Yes (Increases expected return significantly across all levels, boosts win rate, and reduces max loss for deeper OTM strikes (level 2-5)).
+
+9. Momentum (ROC) Filter: Return True if 20-day Rate of Change < 0.05 (5%). (Avoid selling calls if the ETF has rallied more than 5% in the last month)
+   Working: Yes (Noticeable increase in win rate for levels 0-5 and significantly reduced max loss across the board).
+
+10. ATR Breakout Filter: Return True if Close < SMA20 + 1 * ATR(20). (Avoid selling calls if price is breaking out upward adjusting for volatility)
+    Working: Yes (Significantly decreases max loss by sidestepping high volatility upward breakouts while maintaining/improving expected returns and pushing win rates to 98%-100%).
