@@ -32,58 +32,58 @@ Ideas to Filter OTM CALL Options (Levels 1-5):
 
 **11. ADX Trend Strength Filter**
 Return True if 14-day ADX < 25.
-   Working: Yes
+   Working: Yes (Increases win rate from ~95.4% to 96.6%, improves expected return, and significantly cuts max loss from ~-1523 to ~-470 by avoiding trending markets).
 
 ---
 
 **12. EMA Cross (Dual-MA Alignment) Filter**
 Return True if EMA10 < EMA30.
-   Working: Yes
+   Working: Yes (Perfects the win rate to 100%, raises expected return across the board, and essentially turns max loss into a profit).
 
 ---
 
 **13. Consecutive Up Days Filter**
 Return True if the number of consecutive days where `close > prev_close` is fewer than 3.
-   Working: No
+   Working: No (Negligible effect on win rate or max loss, and actually slightly lowers the average expected return compared to the baseline).
 
 ---
 
 **14. Volume Spike Filter**
 Return True if today's volume < 1.5× its 20-day average volume.
-   Working: No
+   Working: No (Offers very marginal improvement in win rate and expected return, but fails to reduce max loss compared to the baseline).
 
 ---
 
 **15. Stochastic %K Overbought Filter**
 Return True if 14-day Stochastic %K < 80.
-   Working: Yes
+   Working: Yes (Increases win rate to over 99%, pushes expected return noticeably higher, and drastically slashes the max loss to ~-127).
 
 ---
 
 **16. Distance from 20-Day Rolling High Filter**
 Return True if `Close < 0.98 × max(close over last 20 days)`.
-   Working: Yes
+   Working: Yes (Produces a 99%+ win rate, delivers the highest average expected return of all tests (~1443), and cuts max loss to ~-127).
 
 ---
 
 **17. Distance from 52-Week High Filter**
 Return True if `Close < 0.95 × max(close over last 252 days)`.
-   Working: Yes
+   Working: Yes (Increases win rate to ~97.9%, slightly bumps expected return, and significantly cuts max loss down to ~-470).
 
 ---
 
 **18. Donchian Channel Filter**
 Return True if `Close < 20-day Donchian upper band` (i.e., the 20-day rolling high).
-   Working: No
+   Working: No (Virtually indistinguishable from the baseline in win rate, expected return, and max loss).
 
 ---
 
 **19. HV Regime Cap Filter (Volatility Ceiling)**
 Return True if 20-day annualized HV < 0.45.
-   Working: No
+   Working: No (Shows practically zero deviation from baseline metrics, indicating tail events of this magnitude aren't driving the losses).
 
 ---
 
 **20. Price vs. Keltner Channel Filter**
 Return True if `Close < EMA20 + 1.0 × ATR(20)`.
-   Working: Yes
+   Working: Yes (Pushes win rate above 99%, strongly boosts expected return (~1374), and reduces max loss dramatically to ~-127).
