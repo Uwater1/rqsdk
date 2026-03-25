@@ -152,18 +152,16 @@ def filter_cycle(etf, entry_date):
     if idx not in etf.index:
         return False
 
-    # Calculate 20-day SMA
-    sma20 = etf.loc[:idx, "close"].tail(20).mean()
-    cond1 = etf.loc[idx, "close"] < sma20
+    # Indicators should be pre-calculated on the 'etf' DataFrame for performance.
+    # Handle NaNs at the start of the series.
+    sma20 = etf.loc[idx, "sma20"]
+    rsi14 = etf.loc[idx, "rsi14"]
 
-    # Calculate 14-day RSI using the full history up to idx
-    close_prices = etf.loc[:idx, "close"]
-    if len(close_prices) < 15:
-        cond2 = True # Default true if not enough data
-    else:
-        rsi = ta.rsi(close_prices, length=14)
-        current_rsi = rsi.iloc[-1]
-        cond2 = current_rsi < 70
+    if pd.isna(sma20) or pd.isna(rsi14):
+        return False # Not enough data to apply filter, skip cycle
+
+    cond1 = etf.loc[idx, "close"] < sma20
+    cond2 = rsi14 < 70
 
     return cond1 or cond2
 
