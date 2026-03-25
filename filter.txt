@@ -32,58 +32,58 @@ Ideas to Filter OTM CALL Options (Levels 1-5):
 
 **11. ADX Trend Strength Filter**
 Return True if 14-day ADX < 25.
-*Rationale: ADX measures trend intensity regardless of direction. A low ADX means a choppy, ranging market — ideal for short options since big directional moves are less likely. Strong trending markets (ADX > 25+) are the enemy of short calls.*
+   Working: Yes
 
 ---
 
 **12. EMA Cross (Dual-MA Alignment) Filter**
 Return True if EMA10 < EMA30.
-*Rationale: When the short-term EMA is below the longer-term EMA, the immediate momentum is bearish or neutral — a complementary signal to the existing SMA20/EMA20 filters but capturing trend alignment across two horizons simultaneously, reducing false positives from whipsaw periods.*
+   Working: Yes
 
 ---
 
 **13. Consecutive Up Days Filter**
 Return True if the number of consecutive days where `close > prev_close` is fewer than 3.
-*Rationale: A market that has risen 3+ days in a row is exhibiting short-term momentum that statistically increases gap-up risk. This targets a very specific, measurable momentum burst that other indicators may lag in detecting.*
+   Working: No
 
 ---
 
 **14. Volume Spike Filter**
 Return True if today's volume < 1.5× its 20-day average volume.
-*Rationale: Unusually high volume often precedes or confirms breakouts. Selling calls into a high-volume up move is one of the worst scenarios (conviction buying). This filter sidesteps those high-volume accumulation days.*
+   Working: No
 
 ---
 
 **15. Stochastic %K Overbought Filter**
 Return True if 14-day Stochastic %K < 80.
-*Rationale: The Stochastic oscillator is a different flavor of overbought detection from RSI — it measures the close's position relative to the recent high-low range. Readings above 80 indicate the ETF is closing near its recent highs, the exact scenario where sold calls are most at risk.*
+   Working: Yes
 
 ---
 
 **16. Distance from 20-Day Rolling High Filter**
 Return True if `Close < 0.98 × max(close over last 20 days)`.
-*Rationale: Selling calls when price is sitting right at or near recent highs is structurally dangerous. This filter requires a minimum 2% pullback from the recent 20-day peak before entering, ensuring you're not selling into exhaustion-that-might-continue.*
+   Working: Yes
 
 ---
 
 **17. Distance from 52-Week High Filter**
 Return True if `Close < 0.95 × max(close over last 252 days)`.
-*Rationale: Options near 52-week highs carry asymmetric upside breakout risk — fund managers chase new highs and market psychology amplifies moves. A 5% buffer from the 252-day high avoids the most dangerous breakout zone for short calls.*
+   Working: Yes
 
 ---
 
 **18. Donchian Channel Filter**
 Return True if `Close < 20-day Donchian upper band` (i.e., the 20-day rolling high).
-*Rationale: A close at or above the Donchian upper band is a classic breakout signal. Unlike Bollinger Bands (which are volatility-adjusted), Donchian uses raw price extremes — a simpler and highly mechanical way to avoid selling calls precisely when price is making new momentum highs.*
+   Working: No
 
 ---
 
 **19. HV Regime Cap Filter (Volatility Ceiling)**
 Return True if 20-day annualized HV < 0.45.
-*Rationale: The existing HV filter sets a floor (sell only when vol > 15%) to ensure premium richness. This adds a ceiling — extremely high volatility regimes (crashes, tail events) produce massive gap moves that can devastate short calls even OTM. Capping at ~45% avoids selling into crisis vol where the distribution of outcomes becomes fat-tailed.*
+   Working: No
 
 ---
 
 **20. Price vs. Keltner Channel Filter**
 Return True if `Close < EMA20 + 1.0 × ATR(20)`.
-*Rationale: The Keltner Channel combines trend (EMA) and volatility (ATR) like the ATR Breakout filter already tested, but uses the EMA as the centerline rather than SMA, making it more responsive. Setting the multiplier to 1.0× (tighter than the existing 1×ATR filter) creates a more conservative entry gate, catching moves that slip through the SMA-based version.*
+   Working: Yes
