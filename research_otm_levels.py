@@ -179,17 +179,20 @@ def analyze_otm_levels(years=None):
     
     levels = [0, 1, 2, 3, 4, 5]
     results_data = []
+    filter_effectiveness_data = []
 
     for option_type in ["C", "P"]:
         level_metrics = {level: {"wins": 0, "total_wins": 0, "pnls": [], "count": 0} for level in levels}
+        filtered_metrics = {level: {"wins": 0, "total_wins": 0, "pnls": [], "count": 0} for level in levels}
         
         for cyc in cycles:
             entry = cyc["entry_date"]
             expiry = cyc["expiry_date"]
             
             # Apply cycle filter only to Short Call
-            if option_type == "C" and not filter_cycle(etf, entry):
-                continue
+            pass_filter = True
+            if option_type == "C":
+                pass_filter = filter_cycle(etf, entry)
             
             etf_expiry_dates = etf.index[etf.index <= expiry]
             if etf_expiry_dates.empty:
@@ -221,14 +224,20 @@ def analyze_otm_levels(years=None):
                     exec_px = entry_mid * (1 + SPREAD_HALF)
                     net_rmb = (intrinsic - exec_px) * mult - COMMISSION
                 
-                level_metrics[level]["count"] += 1
-                level_metrics[level]["pnls"].append(net_rmb)
-                
-                if net_rmb > 0:
-                    level_metrics[level]["wins"] += 1
-                    
-                if intrinsic == 0.0:
-                    level_metrics[level]["total_wins"] += 1
+                if pass_filter:
+                    level_metrics[level]["count"] += 1
+                    level_metrics[level]["pnls"].append(net_rmb)
+                    if net_rmb > 0:
+                        level_metrics[level]["wins"] += 1
+                    if intrinsic == 0.0:
+                        level_metrics[level]["total_wins"] += 1
+                elif option_type == "C":
+                    filtered_metrics[level]["count"] += 1
+                    filtered_metrics[level]["pnls"].append(net_rmb)
+                    if net_rmb > 0:
+                        filtered_metrics[level]["wins"] += 1
+                    if intrinsic == 0.0:
+                        filtered_metrics[level]["total_wins"] += 1
                     
         for level in levels:
             metrics = level_metrics[level]
@@ -250,6 +259,23 @@ def analyze_otm_levels(years=None):
                 "Expected Return (RMB)": round(expected_return, 2),
                 "Max Loss (RMB)": round(max_loss, 2)
             })
+
+        # Process filtered metrics for Short Call
+        if option_type == "C":
+            for level in levels:
+                fm = filtered_metrics[level]
+                if fm["count"] == 0:
+                    continue
+                f_winrate = fm["wins"] / fm["count"]
+                f_total_winrate = fm["total_wins"] / fm["count"]
+                f_ev = np.mean(fm["pnls"])
+                filter_effectiveness_data.append({
+                    "OTM Level": level,
+                    "Cycles": fm["count"],
+                    "Winrate": f"{f_winrate:.2%}",
+                    "Expire Worthless Rate": f"{f_total_winrate:.2%}",
+                    "Expected Return (RMB)": round(f_ev, 2)
+                })
             
     df = pd.DataFrame(results_data)
     
@@ -259,6 +285,15 @@ def analyze_otm_levels(years=None):
     print("="*95)
     print(df.to_string(index=False))
     print("="*95)
+    
+    if filter_effectiveness_data:
+        f_df = pd.DataFrame(filter_effectiveness_data)
+        f_title = "FILTER EFFECTIVENESS (FILTERED OUT SHORT CALL CYCLES)"
+        print("\n" + "="*95)
+        print(" " * ((95 - len(f_title)) // 2) + f_title)
+        print("="*95)
+        print(f_df.to_string(index=False))
+        print("="*95)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Research OTM Alpha (Short Call & Long Put) for each level of options.")
