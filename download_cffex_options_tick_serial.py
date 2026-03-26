@@ -3,6 +3,8 @@ import os
 import pandas as pd
 from datetime import datetime, timedelta
 import time
+import argparse
+import sys
 
 # Initialize
 rqdatac.init()
@@ -11,22 +13,20 @@ SAVE_DIR = "data-deep"
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
 
-def get_latest_trading_dates(n=5):
-    """获取最近n个交易日"""
-    end_date = datetime.now().date()
-    dates = rqdatac.get_trading_dates(start_date=end_date - timedelta(days=30), end_date=end_date)
-    return sorted(dates, reverse=True)[:n]
-
-def download_tick_data(order_book_id, date):
-    """下载单个合约单日的Tick数据(包含双边报价)"""
+def download_tick_data(order_book_id, date, underlying):
+    """下载单个合约单日的Tick数据(包含双边报价)并存入组织好的文件夹"""
     try:
-        filename = f"{order_book_id}_{date}.parquet"
-        filepath = os.path.join(SAVE_DIR, filename)
+        # 新路径结构: data-deep/YYYY-MM-DD/UNDERLYING/order_book_id.parquet
+        target_dir = os.path.join(SAVE_DIR, date, underlying)
+        if not os.path.exists(target_dir):
+            os.makedirs(target_dir)
+            
+        filepath = os.path.join(target_dir, f"{order_book_id}.parquet")
         
         if os.path.exists(filepath):
-            return f"{order_book_id} {date} ALREADY EXISTS"
+            return f"{order_book_id} {date} SKIPPED (Already exists)"
         
-        # 获取Tick数据 (包含 a1~a5, b1~b5)
+        # 获取Tick数据
         df = rqdatac.get_price(
             order_book_id, 
             start_date=date, 
@@ -36,7 +36,6 @@ def download_tick_data(order_book_id, date):
         )
         
         if df is not None and not df.empty:
-            # 确保包含 bid/ask 字段
             df.to_parquet(filepath)
             return f"{order_book_id} {date} SUCCESS: {len(df)} ticks"
         else:
@@ -45,36 +44,48 @@ def download_tick_data(order_book_id, date):
     except Exception as e:
         return f"{order_book_id} {date} ERROR: {str(e)}"
 
-def run_download():
-    # 获取最近2个交易日（Tick数据量极大，先抓最近的）
-    dates = get_latest_trading_dates(n=2)
-    print(f"Targeting dates: {dates}")
+def run_download(target_date, target_ticker):
+    # 处理日期
+    date_str = target_date
+    print(f"\n--- Processing date: {date_str} ---")
     
     # 中金所股指期权标的
-    underlying_symbols = ['IO', 'MO', 'HO']
+    if target_ticker.upper() == 'ALL':
+        underlying_symbols = ['IO', 'MO', 'HO']
+    else:
+        underlying_symbols = [target_ticker.upper()]
     
     total_count = 0
-    for date in dates:
-        date_str = date.strftime('%Y-%m-%d')
-        print(f"\n--- Processing date: {date_str} ---")
-        
-        for und in underlying_symbols:
-            try:
-                # 获取该标的下的所有活跃合约
-                contracts = rqdatac.options.get_contracts(underlying=und, trading_date=date)
-                print(f"Found {len(contracts)} contracts for {und} on {date_str}")
-                
-                # 串行下载，不启用多线程
-                for contract in contracts:
-                    res = download_tick_data(contract, date_str)
-                    print(res)
-                    total_count += 1
-                    # 适当延时，保护账号
-                    time.sleep(0.05) 
-            except Exception as e:
-                print(f"Error fetching contracts for {und} on {date_str}: {e}")
+    for und in underlying_symbols:
+        try:
+            contracts = rqdatac.options.get_contracts(underlying=und, trading_date=date_str)
+            print(f"Found {len(contracts)} contracts for {und} on {date_str}")
+            
+            for contract in contracts:
+                res = download_tick_data(contract, date_str, und)
+                print(res)
+                total_count += 1
+                time.sleep(0.05) 
+        except Exception as e:
+            print(f"Error fetching contracts for {und} on {date_str}: {e}")
 
-    print(f"\nTick download completed. Total tasks processed: {total_count}")
+    print(f"\nTick download completed. Total processed: {total_count}")
 
 if __name__ == "__main__":
-    run_download()
+    parser = argparse.ArgumentParser(description="Download CFFEX Options Tick data (Bid/Ask).")
+    parser.add_argument("--date", type=str, help="Target date (e.g., 2026-03-23)")
+    parser.add_argument("--ticker", type=str, default="ALL", help="Underlying ticker: IO, MO, HO, or ALL (default: ALL)")
+    
+    # 如果没有提供参数或提供了 -h，则显示用法
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(1)
+        
+    args = parser.parse_args()
+    
+    if not args.date:
+        print("Error: --date is required.")
+        parser.print_help()
+        sys.exit(1)
+        
+    run_download(args.date, args.ticker)
