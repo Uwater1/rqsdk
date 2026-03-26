@@ -531,8 +531,9 @@ def calc_cycle_pnl(cyc, opt, etf, daily_ivs):
 
     filter_passed = False
     if pd.notna(rsi) and pd.notna(bbu):
-        # Filter: RSI < 66 AND Close < Upper Bollinger Band
-        filter_passed = (rsi < 66.0) and (etf_close_entry < bbu)
+        # Filter: RSI < 62 AND Close < Upper Bollinger Band
+        rsi_threshold = 62.0 if etf_choice == "50" else 66.0
+        filter_passed = (rsi < rsi_threshold) and (etf_close_entry < bbu)
 
     # 3. Constant Sizing
     num_contracts = NUM_CONTRACTS
@@ -797,11 +798,11 @@ def plot_backtest_results(results, etf, out_path):
 
 if __name__ == "__main__":
     # Handle command line argument for ETF choice
-    choice = "300"
+    etf_choice = "300"
     if len(sys.argv) > 1:
-        choice = sys.argv[1]
+        etf_choice = sys.argv[1]
     
-    select_underlying(choice)
+    select_underlying(etf_choice)
     
     # Redirect output to log file
     log_file = f"backtest_covered_call_{ETF_NAME}.log"
