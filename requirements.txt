@@ -1,4 +1,7 @@
 rqsdk
 pyarrow
 lightgbm
+pandas
 pandas_ta
+numba
+matplotlib

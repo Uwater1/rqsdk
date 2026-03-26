@@ -152,7 +152,7 @@ def main():
     print("--- 1. Long Box Near (Nearest DTE) Top 5 ---")
     if not df_long.empty:
         df_long_near = df_long[(df_long['DTE'] == min_dte) & (df_long['ret'] >= 0.01)]
-        df_long_near = df_long_near.sort_values(by='ann_ret', ascending=False).head(5)
+        df_long_near = df_long_near.sort_values(by='ann_ret', ascending=False).head(3)
         if not df_long_near.empty:
             for idx, row in df_long_near.iterrows():
                 print(f"[{row['index']}] K1: {row['K1']} | K2: {row['K2']} | DTE: {row['DTE']} | Cost: {row['cost']:.2f} | Payout: {row['K2'] - row['K1']:.2f} | Exp Return: {row['ret']*100:.2f}% | Ann Return: {row['ann_ret']*100:.2f}%")
@@ -163,11 +163,11 @@ def main():
         print("No long boxes found.")
     print()
         
-    # 2. Long Box Far (min_dte < DTE < 91)
-    print("--- 2. Long Box Far (Near term, DTE < 91 but > Nearest) Top 5 ---")
+    # 2. Long Box Far (min_dte < DTE < 61)
+    print("--- 2. Long Box Far (Near term, DTE < 61 but > Nearest) Top 5 ---")
     if not df_long.empty:
-        df_long_far = df_long[(df_long['DTE'] > min_dte) & (df_long['DTE'] < 91) & (df_long['ret'] >= 0.01)]
-        df_long_far = df_long_far.sort_values(by='ann_ret', ascending=False).head(5)
+        df_long_far = df_long[(df_long['DTE'] > min_dte) & (df_long['DTE'] < 61) & (df_long['ret'] >= 0.01)]
+        df_long_far = df_long_far.sort_values(by='ann_ret', ascending=False).head(3)
         if not df_long_far.empty:
             for idx, row in df_long_far.iterrows():
                 print(f"[{row['index']}] K1: {row['K1']} | K2: {row['K2']} | DTE: {row['DTE']} | Cost: {row['cost']:.2f} | Payout: {row['K2'] - row['K1']:.2f} | Exp Return: {row['ret']*100:.2f}% | Ann Return: {row['ann_ret']*100:.2f}%")
@@ -182,7 +182,7 @@ def main():
     print("--- 3. Short Box (All terms DTE < 61) Top 5 ---")
     if not df_short.empty:
         df_short_under_60 = df_short[(df_short['DTE'] < 61) & (df_short['profit'] >= 1.0)]
-        df_short_under_60 = df_short_under_60.sort_values(by='ann_ret', ascending=False).head(5)
+        df_short_under_60 = df_short_under_60.sort_values(by='ann_ret', ascending=False).head(3)
         if not df_short_under_60.empty:
             for idx, row in df_short_under_60.iterrows():
                 print(f"[{row['index']}] K1: {row['K1']} | K2: {row['K2']} | DTE: {row['DTE']} | Credit: {row['credit']:.2f} | Margin: {row['K2'] - row['K1']:.2f} | Exp Return: {row['ret']*100:.2f}% | Ann Return: {row['ann_ret']*100:.2f}%")
