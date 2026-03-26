@@ -531,8 +531,8 @@ def calc_cycle_pnl(cyc, opt, etf, daily_ivs):
 
     filter_passed = False
     if pd.notna(rsi) and pd.notna(bbu):
-        # Filter: RSI < 62 AND Close < Upper Bollinger Band
-        rsi_threshold = 62.0 if etf_choice == "50" else 66.0
+        # Filter: RSI < 66 AND Close < Upper Bollinger Band
+        rsi_threshold = 60.0 if etf_choice == "50" else 66.0
         filter_passed = (rsi < rsi_threshold) and (etf_close_entry < bbu)
 
     # 3. Constant Sizing

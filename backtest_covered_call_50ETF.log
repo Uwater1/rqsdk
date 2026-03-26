@@ -148,12 +148,11 @@ Cycle  2016-09-29 → 2016-10-26   IV=105.5% (IVR=0.06)  calls=OTM2+OTM3 puts=Le
   Call Leg B (OTM3)         sell   2.200   0.0451   450.80       0.00    448.80  [expires_worthless]
                                         CYCLE TOTAL   1293.52
 
-Cycle  2016-10-27 → 2016-11-23   IV=128.3% (IVR=0.13)  calls=OTM2+OTM3 puts=Level1   ETF=1.9253 RSI=60.9 BBU=1.946 (Total 2 contracts) [FILTER PASS]
+Cycle  2016-10-27 → 2016-11-23   IV=128.3% (IVR=0.13)  calls=OTM4 puts=Level1   ETF=1.9253 RSI=60.9 BBU=1.946 (Total 1 contracts) [FILTER FAIL]
   Leg                       side       K  exec_px     prem       exer       net
   -----------------------------------------------------------------------------
-  Call Leg A (OTM2)         sell   2.150   0.1516  1516.06       0.00   1514.06  [expires_worthless]
-  Call Leg B (OTM3)         sell   2.200   0.1052  1051.54       0.00   1049.54  [expires_worthless]
-                                        CYCLE TOTAL   2563.60
+  Call Leg C (OTM4)         sell   2.250   0.0632   632.10       0.00    630.10  [expires_worthless]
+                                        CYCLE TOTAL    630.10
 
 Cycle  2016-11-24 → 2016-12-28   IV=144.3% (IVR=0.18)  calls=OTM4 puts=Level1   ETF=2.0255 RSI=75.6 BBU=2.026 (Total 2 contracts) [FILTER FAIL]
   Leg                       side       K  exec_px     prem       exer       net
@@ -175,12 +174,11 @@ Cycle  2017-01-26 → 2017-02-22   IV=109.9% (IVR=0.08)  calls=OTM4 puts=Level1 
   Call Leg C (OTM4)         sell   2.350   0.0371   371.42       0.00    369.42  [expires_worthless]
                                         CYCLE TOTAL    369.42
 
-Cycle  2017-02-23 → 2017-03-22   IV=147.6% (IVR=0.19)  calls=OTM2+OTM3 puts=Level1   ETF=2.0377 RSI=60.8 BBU=2.049 (Total 2 contracts) [FILTER PASS]
+Cycle  2017-02-23 → 2017-03-22   IV=147.6% (IVR=0.19)  calls=OTM4 puts=Level1   ETF=2.0377 RSI=60.8 BBU=2.049 (Total 1 contracts) [FILTER FAIL]
   Leg                       side       K  exec_px     prem       exer       net
   -----------------------------------------------------------------------------
-  Call Leg A (OTM2)         sell   2.104   0.2767  2827.40       0.00   2825.40  [expires_worthless]
-  Call Leg B (OTM3)         sell   2.153   0.2291  2341.65       0.00   2339.65  [expires_worthless]
-                                        CYCLE TOTAL   5165.05
+  Call Leg C (OTM4)         sell   2.200   0.1828  1827.70       0.00   1825.70  [expires_worthless]
+                                        CYCLE TOTAL   1825.70
 
 Cycle  2017-03-23 → 2017-04-26   IV=74.9% (IVR=0.00)  calls=OTM2+OTM3 puts=Level1   ETF=2.0010 RSI=46.6 BBU=2.030 (Total 2 contracts) [FILTER PASS]
   Leg                       side       K  exec_px     prem       exer       net
@@ -381,12 +379,11 @@ Cycle  2019-06-27 → 2019-07-24   IV=121.6% (IVR=0.13)  calls=OTM4 puts=Level1 
   Put Buy    (Level 1)       buy   2.600   0.0033   -32.64       0.00    -34.64  [expires_worthless]
                                         CYCLE TOTAL   1768.52
 
-Cycle  2019-07-25 → 2019-08-28   IV=95.3% (IVR=0.00)  calls=OTM2+OTM3 puts=Level1   ETF=2.6408 RSI=61.3 BBU=2.675 (Total 2 contracts) [FILTER PASS]
+Cycle  2019-07-25 → 2019-08-28   IV=95.3% (IVR=0.00)  calls=OTM4 puts=Level1   ETF=2.6408 RSI=61.3 BBU=2.675 (Total 1 contracts) [FILTER FAIL]
   Leg                       side       K  exec_px     prem       exer       net
   -----------------------------------------------------------------------------
-  Call Leg A (OTM2)         sell   2.750   0.2298  2298.10       0.00   2296.10  [expires_worthless]
-  Call Leg B (OTM3)         sell   2.800   0.1855  1855.14       0.00   1853.14  [expires_worthless]
-                                        CYCLE TOTAL   4149.24
+  Call Leg C (OTM4)         sell   2.850   0.1437  1436.68       0.00   1434.68  [expires_worthless]
+                                        CYCLE TOTAL   1434.68
 
 Cycle  2019-08-29 → 2019-09-25   IV=115.7% (IVR=0.12)  calls=OTM2+OTM3 puts=Level1   ETF=2.5733 RSI=49.7 BBU=2.637 (Total 3 contracts) [FILTER PASS]
   Leg                       side       K  exec_px     prem       exer       net
@@ -465,21 +462,19 @@ Cycle  2020-05-28 → 2020-06-24   IV=89.3% (IVR=0.15)  calls=OTM2+OTM3 puts=Lev
   Put Buy    (Level 1)       buy   2.500   0.0046   -45.90       0.00    -47.90  [expires_worthless]
                                         CYCLE TOTAL   2547.99
 
-Cycle  2020-06-29 → 2020-07-22   IV=96.2% (IVR=0.19)  calls=OTM2+OTM3 puts=Level1   ETF=2.6476 RSI=61.3 BBU=2.670 (Total 3 contracts) [FILTER PASS]
+Cycle  2020-06-29 → 2020-07-22   IV=96.2% (IVR=0.19)  calls=OTM4 puts=Level1   ETF=2.6476 RSI=61.3 BBU=2.670 (Total 2 contracts) [FILTER FAIL]
   Leg                       side       K  exec_px     prem       exer       net
   -----------------------------------------------------------------------------
-  Call Leg A (OTM2)         sell   2.700   0.2232  2232.44   -3055.08   -824.64  [assigned  ETF=3.0055 K=2.7000]
-  Call Leg B (OTM3)         sell   2.750   0.1766  1765.96   -2555.08   -791.12  [assigned  ETF=3.0055 K=2.7500]
+  Call Leg C (OTM4)         sell   2.800   0.1338  1337.70   -2055.08   -719.38  [assigned  ETF=3.0055 K=2.8000]
   Put Buy    (Level 1)       buy   2.600   0.0029   -28.56       0.00    -30.56  [expires_worthless]
-                                        CYCLE TOTAL  -1646.32
+                                        CYCLE TOTAL   -749.94
 
-Cycle  2020-07-23 → 2020-08-26   IV=93.8% (IVR=0.18)  calls=OTM2+OTM3 puts=Level1   ETF=3.0028 RSI=61.3 BBU=3.251 (Total 3 contracts) [FILTER PASS]
+Cycle  2020-07-23 → 2020-08-26   IV=93.8% (IVR=0.18)  calls=OTM4 puts=Level1   ETF=3.0028 RSI=61.3 BBU=3.251 (Total 2 contracts) [FILTER FAIL]
   Leg                       side       K  exec_px     prem       exer       net
   -----------------------------------------------------------------------------
-  Call Leg A (OTM2)         sell   3.200   0.1774  1773.80       0.00   1771.80  [expires_worthless]
-  Call Leg B (OTM3)         sell   3.300   0.1165  1165.22       0.00   1163.22  [expires_worthless]
+  Call Leg C (OTM4)         sell   3.400   0.0733   733.04       0.00    731.04  [expires_worthless]
   Put Buy    (Level 1)       buy   3.000   0.0150  -149.94      44.08   -108.46  [exercised ETF=2.9956 K=3.0000]
-                                        CYCLE TOTAL   2826.56
+                                        CYCLE TOTAL    622.58
 
 Cycle  2020-08-27 → 2020-09-23   IV=101.1% (IVR=0.22)  calls=OTM2+OTM3 puts=Level1   ETF=3.0127 RSI=53.8 BBU=3.068 (Total 3 contracts) [FILTER PASS]
   Leg                       side       K  exec_px     prem       exer       net
@@ -873,13 +868,12 @@ Cycle  2024-09-26 → 2024-10-23   IV=48.8% (IVR=0.11)  calls=OTM4 puts=Level1  
   Put Buy    (Level 1)       buy   2.450   0.0101  -100.98       0.00   -102.98  [expires_worthless]
                                         CYCLE TOTAL     64.29
 
-Cycle  2024-10-24 → 2024-11-27   IV=49.9% (IVR=0.12)  calls=OTM2+OTM3 puts=Level1   ETF=2.6624 RSI=60.3 BBU=2.927 (Total 3 contracts) [FILTER PASS]
+Cycle  2024-10-24 → 2024-11-27   IV=49.9% (IVR=0.12)  calls=OTM4 puts=Level1   ETF=2.6624 RSI=60.3 BBU=2.927 (Total 2 contracts) [FILTER FAIL]
   Leg                       side       K  exec_px     prem       exer       net
   -----------------------------------------------------------------------------
-  Call Leg A (OTM2)         sell   2.750   0.1005  1005.48       0.00   1003.48  [expires_worthless]
-  Call Leg B (OTM3)         sell   2.800   0.0752   751.66       0.00    749.66  [expires_worthless]
+  Call Leg C (OTM4)         sell   2.850   0.0577   577.22       0.00    575.22  [expires_worthless]
   Put Buy    (Level 1)       buy   2.650   0.0231  -230.52     448.77    215.65  [exercised ETF=2.6051 K=2.6500]
-                                        CYCLE TOTAL   1968.79
+                                        CYCLE TOTAL    790.87
 
 Cycle  2024-11-28 → 2024-12-25   IV=34.6% (IVR=0.00)  calls=OTM2+OTM3 puts=Level1   ETF=2.5927 RSI=45.0 BBU=2.781 (Total 3 contracts) [FILTER PASS]
   Leg                       side       K  exec_px     prem       exer       net
@@ -905,13 +899,12 @@ Cycle  2025-01-23 → 2025-02-26   IV=30.7% (IVR=0.00)  calls=OTM2+OTM3 puts=Lev
   Put Buy    (Level 1)       buy   2.550   0.0256  -256.02       0.00   -258.02  [expires_worthless]
                                         CYCLE TOTAL    428.56
 
-Cycle  2025-02-27 → 2025-03-26   IV=31.7% (IVR=0.04)  calls=OTM2+OTM3 puts=Level1   ETF=2.6694 RSI=60.1 BBU=2.697 (Total 3 contracts) [FILTER PASS]
+Cycle  2025-02-27 → 2025-03-26   IV=31.7% (IVR=0.04)  calls=OTM4 puts=Level1   ETF=2.6694 RSI=60.1 BBU=2.697 (Total 2 contracts) [FILTER FAIL]
   Leg                       side       K  exec_px     prem       exer       net
   -----------------------------------------------------------------------------
-  Call Leg A (OTM2)         sell   2.700   0.0676   676.20       0.00    674.20  [expires_worthless]
-  Call Leg B (OTM3)         sell   2.744   0.0448   457.04       0.00    455.04  [expires_worthless]
+  Call Leg C (OTM4)         sell   2.750   0.0416   415.52       0.00    413.52  [expires_worthless]
   Put Buy    (Level 1)       buy   2.650   0.0131  -130.56       0.00   -132.56  [expires_worthless]
-                                        CYCLE TOTAL    996.68
+                                        CYCLE TOTAL    280.96
 
 Cycle  2025-03-27 → 2025-04-23   IV=27.1% (IVR=0.00)  calls=OTM2+OTM3 puts=Level1   ETF=2.6791 RSI=52.4 BBU=2.746 (Total 3 contracts) [FILTER PASS]
   Leg                       side       K  exec_px     prem       exer       net
@@ -966,13 +959,12 @@ Cycle  2025-09-25 → 2025-10-22   IV=31.4% (IVR=0.06)  calls=OTM2+OTM3 puts=Lev
   Put Buy    (Level 1)       buy   3.000   0.0177  -177.48       0.00   -179.48  [expires_worthless]
                                         CYCLE TOTAL     71.32
 
-Cycle  2025-10-23 → 2025-11-26   IV=27.7% (IVR=0.02)  calls=OTM2+OTM3 puts=Level1   ETF=3.0853 RSI=61.8 BBU=3.100 (Total 3 contracts) [FILTER PASS]
+Cycle  2025-10-23 → 2025-11-26   IV=27.7% (IVR=0.02)  calls=OTM4 puts=Level1   ETF=3.0853 RSI=61.8 BBU=3.100 (Total 2 contracts) [FILTER FAIL]
   Leg                       side       K  exec_px     prem       exer       net
   -----------------------------------------------------------------------------
-  Call Leg A (OTM2)         sell   3.200   0.0453   452.76       0.00    450.76  [expires_worthless]
-  Call Leg B (OTM3)         sell   3.300   0.0177   177.38       0.00    175.38  [expires_worthless]
+  Call Leg C (OTM4)         sell   3.400   0.0070    69.58       0.00     67.58  [expires_worthless]
   Put Buy    (Level 1)       buy   3.000   0.0112  -112.20       0.00   -114.20  [expires_worthless]
-                                        CYCLE TOTAL    511.94
+                                        CYCLE TOTAL    -46.62
 
 Cycle  2025-11-27 → 2025-12-24   IV=12.0% (IVR=0.00)  calls=OTM2+OTM3 puts=Level1   ETF=3.0318 RSI=43.0 BBU=3.144 (Total 3 contracts) [FILTER PASS]
   Leg                       side       K  exec_px     prem       exer       net
@@ -982,21 +974,19 @@ Cycle  2025-11-27 → 2025-12-24   IV=12.0% (IVR=0.00)  calls=OTM2+OTM3 puts=Lev
   Put Buy    (Level 1)       buy   3.020   0.0365  -374.84       0.00   -376.84  [expires_worthless]
                                         CYCLE TOTAL   -328.53
 
-Cycle  2025-12-25 → 2026-01-28   IV=11.1% (IVR=0.01)  calls=OTM2+OTM3 puts=Level1   ETF=3.1070 RSI=61.0 BBU=3.109 (Total 3 contracts) [FILTER PASS]
+Cycle  2025-12-25 → 2026-01-28   IV=11.1% (IVR=0.01)  calls=OTM4 puts=Level1   ETF=3.1070 RSI=61.0 BBU=3.109 (Total 2 contracts) [FILTER FAIL]
   Leg                       side       K  exec_px     prem       exer       net
   -----------------------------------------------------------------------------
-  Call Leg A (OTM2)         sell   3.200   0.0156   155.82       0.00    153.82  [expires_worthless]
-  Call Leg B (OTM3)         sell   3.215   0.0129   132.79       0.00    130.79  [expires_worthless]
+  Call Leg C (OTM4)         sell   3.300   0.0062    61.74       0.00     59.74  [expires_worthless]
   Put Buy    (Level 1)       buy   3.100   0.0408  -408.00       0.00   -410.00  [expires_worthless]
-                                        CYCLE TOTAL   -125.39
+                                        CYCLE TOTAL   -350.26
 
-Cycle  2026-01-29 → 2026-02-25   IV=16.4% (IVR=0.10)  calls=OTM2+OTM3 puts=Level1   ETF=3.1960 RSI=61.9 BBU=3.246 (Total 3 contracts) [FILTER PASS]
+Cycle  2026-01-29 → 2026-02-25   IV=16.4% (IVR=0.10)  calls=OTM4 puts=Level1   ETF=3.1960 RSI=61.9 BBU=3.246 (Total 2 contracts) [FILTER FAIL]
   Leg                       side       K  exec_px     prem       exer       net
   -----------------------------------------------------------------------------
-  Call Leg A (OTM2)         sell   3.300   0.0245   245.00       0.00    243.00  [expires_worthless]
-  Call Leg B (OTM3)         sell   3.400   0.0120   119.56       0.00    117.56  [expires_worthless]
+  Call Leg C (OTM4)         sell   3.500   0.0068    67.62       0.00     65.62  [expires_worthless]
   Put Buy    (Level 1)       buy   3.100   0.0161  -161.16       0.00   -163.16  [expires_worthless]
-                                        CYCLE TOTAL    197.40
+                                        CYCLE TOTAL    -97.54
 
 Cycle  2026-02-26 → 2026-03-25   IV=12.9% (IVR=0.05)  calls=OTM2+OTM3 puts=Level1   ETF=3.1150 RSI=46.0 BBU=3.188 (Total 3 contracts) [FILTER PASS]
   Leg                       side       K  exec_px     prem       exer       net
@@ -1010,9 +1000,9 @@ Cycle  2026-02-26 → 2026-03-25   IV=12.9% (IVR=0.05)  calls=OTM2+OTM3 puts=Lev
   SUMMARY
 ======================================================================
   Cycles traded          : 133
-  Winning cycles         : 124/133  (93%)
-  Avg gross premium/cyc  :  2505.00 RMB
-  Total net P&L          : 335206.91 RMB
-  Cumulative by cycle    : ['2627', '2028', '5986', '14588', '19094', '23288', '27654', '32420', '35970', '42117', '46188', '47519', '49330', '53673', '55320', '59048', '60972', '63651', '69445', '70739', '73302', '75559', '76700', '77069', '82234', '82921', '84313', '86438', '87626', '88982', '94390', '95620', '96504', '99402', '101501', '106136', '113614', '117111', '120187', '123247', '126059', '131366', '135699', '138156', '143226', '147210', '149760', '149296', '151846', '154137', '160694', '162652', '164420', '168570', '173000', '177175', '180859', '184998', '189773', '191593', '197985', '201198', '204061', '206609', '204963', '207790', '210500', '214866', '218073', '221424', '221789', '224418', '232395', '235198', '237209', '240337', '245559', '249114', '252374', '255917', '257753', '259021', '263315', '266401', '271156', '274953', '277845', '278972', '280221', '283532', '287183', '291071', '292241', '293571', '293079', '293688', '297385', '299398', '301639', '304189', '305403', '306496', '308652', '311157', '312529', '314640', '316645', '317590', '318182', '319062', '319688', '322040', '322837', '323878', '324689', '324753', '326722', '327209', '329699', '330128', '331125', '331797', '332453', '332800', '332761', '332701', '332628', '332700', '333211', '332883', '332758', '332955', '335207']
+  Winning cycles         : 122/133  (92%)
+  Avg gross premium/cyc  :  2385.89 RMB
+  Total net P&L          : 322939.89 RMB
+  Cumulative by cycle    : ['2627', '2028', '5986', '14588', '19094', '23288', '27654', '32420', '35970', '42117', '46188', '47519', '49330', '53673', '55320', '59048', '60972', '63651', '69445', '70739', '71369', '73626', '74766', '75136', '76961', '77648', '79040', '81165', '82353', '83709', '89117', '90347', '91231', '94129', '96228', '100863', '108341', '111838', '114914', '117974', '120786', '126093', '130426', '132883', '137953', '141938', '144488', '144023', '146573', '148864', '155421', '157379', '159148', '160582', '165013', '169188', '172871', '177010', '181785', '183605', '189998', '193211', '196074', '198622', '197872', '198495', '201205', '205571', '208778', '212129', '212494', '215123', '223100', '225903', '227914', '231042', '236264', '239819', '243079', '246622', '248458', '249726', '254020', '257106', '261861', '265658', '268550', '269677', '270926', '274237', '277888', '281776', '282946', '284276', '283784', '284393', '288090', '290102', '292344', '294894', '296108', '297201', '299357', '301862', '303234', '305345', '307350', '308295', '308887', '309767', '310393', '312745', '313542', '314583', '315394', '315458', '316249', '316736', '319226', '319655', '319936', '320608', '321265', '321612', '321573', '321512', '321440', '321511', '321464', '321136', '320785', '320688', '322940']
 
   Chart saved → backtest_covered_call_50ETF.png
