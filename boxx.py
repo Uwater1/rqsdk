@@ -289,8 +289,8 @@ def run_scanner(date_dir: str, out_dir: str = '.'):
     """
     Main entry point.
     - Loads all expiry groups.
-    - Classifies each group as 'near' (min DTE), 'mid' (2nd smallest DTE ≤60),
-      or 'far' (DTE >60, only used for short box).
+    - Classifies each group as 'near' (min DTE), 'mid' (2nd smallest DTE ≤71),
+      or 'far' (DTE >71, only used for short box).
     - Runs numba kernel on each group.
     - Batches results by minute.
     - For each minute, picks the best near-long, mid-long, and short across ALL groups.
@@ -340,12 +340,12 @@ def run_scanner(date_dir: str, out_dir: str = '.'):
                 if dte == min_dte:
                     if mn not in near_best or r['long_ann'] > near_best[mn]['long_ann']:
                         near_best[mn] = r
-                elif mid_dte is not None and mid_dte <= 60 and dte == mid_dte:
+                elif mid_dte is not None and mid_dte <= 71 and dte == mid_dte:
                     if mn not in mid_best or r['long_ann'] > mid_best[mn]['long_ann']:
                         mid_best[mn] = r
 
-            # ── short box (any DTE ≤60) ──
-            if r['short_ret'] > 0 and dte <= 60:
+            # ── short box (any DTE ≤71) ──
+            if r['short_ret'] > 0 and dte <= 71:
                 if mn not in short_best or r['short_ann'] > short_best[mn]['short_ann']:
                     short_best[mn] = r
 
