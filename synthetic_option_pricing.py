@@ -1,4 +1,5 @@
 import os
+import math
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -30,7 +31,8 @@ class TargetExpiryGenerator:
     @staticmethod
     def get_target_expiries(current_date):
         targets = []
-        for i in range(28, 36): # Only checks dates in [28, 35] days away
+        # Widen range to [25, 42] days to handle month variance and holidays (Bug 5)
+        for i in range(25, 43): 
             future_date = current_date + timedelta(days=i)
             tag = TargetExpiryGenerator.get_tag(future_date)
             if tag:
@@ -58,11 +60,13 @@ def process_underlying(underlying_symbol):
     spot_map = spot_df.set_index(pd.to_datetime(spot_df['date']))['close'].to_dict()
     
     # Add maturity info
-    full_data = prices_df.merge(inst_df[['order_book_id', 'maturity_date', 'option_type']], on='order_book_id')
+    # Ensure strike_price is pulled from inst_df as source of truth (Bug 1)
+    if 'strike_price' in prices_df.columns:
+        prices_df = prices_df.drop(columns=['strike_price'])
+    full_data = prices_df.merge(inst_df[['order_book_id', 'maturity_date', 'option_type', 'strike_price']], on='order_book_id')
     full_data['maturity_date'] = pd.to_datetime(full_data['maturity_date'])
 
-    # Deduplicate: adjusted-strike contracts can share (date, strike, type, maturity)
-    # with different order_book_ids. Keep the highest-volume contract to avoid pivot crash.
+    # Deduplicate: kept from previous bugfix
     full_data = (full_data
                  .sort_values('volume', ascending=False)
                  .drop_duplicates(subset=['date', 'strike_price', 'option_type', 'maturity_date'], keep='first'))
@@ -85,7 +89,6 @@ def process_underlying(underlying_symbol):
         listed_mats = sorted(day_data['maturity_date'].unique())
         
         # Pre-pivot prices for fast lookup
-        # Index: (strike, type), Column: maturity
         price_pivot = day_data.pivot(index=['strike_price', 'option_type'], columns='maturity_date', values='close')
         
         for tgt in targets:
@@ -106,68 +109,67 @@ def process_underlying(underlying_symbol):
             T1 = max((t1_dt - dt_pd).days / 365.0, 1e-6)
             T2 = (t2_dt - dt_pd).days / 365.0
             
-            # Use only strikes available at BOTH bracketed maturities
-            shared_mats = price_pivot[[t1_dt, t2_dt]].dropna()
-            if shared_mats.empty or s0 <= 0: continue
+            # --- Robust Forward Price Calculation (Bug 2) ---
+            def get_robust_forward(mat_dt, T, spot):
+                # Filter to near-ATM strikes (±10%)
+                mask = (price_pivot.index.get_level_values('strike_price') >= spot * 0.9) & \
+                       (price_pivot.index.get_level_values('strike_price') <= spot * 1.1)
+                atm_data = price_pivot.loc[mask, mat_dt].unstack()
+                if 'C' not in atm_data or 'P' not in atm_data: 
+                    return spot * math.exp(r * T) # dummy fallback
+                
+                atm_pairs = atm_data.dropna(subset=['C', 'P'])
+                if atm_pairs.empty: 
+                    return spot * math.exp(r * T)
+                
+                k_vec = atm_pairs.index.values
+                c_vec = atm_pairs['C'].values
+                p_vec = atm_pairs['P'].values
+                # F = K + (C - P) * e^(rT)
+                f_vec = k_vec + (c_vec - p_vec) * math.exp(r * T)
+                return np.median(f_vec) # Use median for robustness against outliers
+
+            F1 = get_robust_forward(t1_dt, T1, s0)
+            F2 = get_robust_forward(t2_dt, T2, s0)
+
+            # --- PRE-FILTERING (Bug 6) ---
+            # We need strikes with C and P available at BOTH maturities
+            avail_c1 = price_pivot.xs('C', level='option_type')[t1_dt].dropna().index
+            avail_p1 = price_pivot.xs('P', level='option_type')[t1_dt].dropna().index
+            avail_c2 = price_pivot.xs('C', level='option_type')[t2_dt].dropna().index
+            avail_p2 = price_pivot.xs('P', level='option_type')[t2_dt].dropna().index
             
-            # Group by strike to ensure we have both Call and Put for Forward calculation
-            strikes = shared_mats.index.get_level_values('strike_price').unique()
-            
-            # Group by strike to ensure we have both Call and Put for Forward calculation
-            shared_strikes = sorted(shared_mats.index.get_level_values('strike_price').unique())
+            shared_strikes = sorted(set(avail_c1) & set(avail_p1) & set(avail_c2) & set(avail_p2))
+            if not shared_strikes: continue
             
             # Prepare arrays for Numba
             num_s = len(shared_strikes)
-            c1_arr = np.zeros(num_s)
-            p1_arr = np.zeros(num_s)
-            c2_arr = np.zeros(num_s)
-            p2_arr = np.zeros(num_s)
-            valid_mask = np.ones(num_s, dtype=np.bool_)
-            
-            for idx, k in enumerate(shared_strikes):
-                try:
-                    c1_arr[idx] = shared_mats.loc[(k, 'C'), t1_dt]
-                    p1_arr[idx] = shared_mats.loc[(k, 'P'), t1_dt]
-                    c2_arr[idx] = shared_mats.loc[(k, 'C'), t2_dt]
-                    p2_arr[idx] = shared_mats.loc[(k, 'P'), t2_dt]
-                except KeyError:
-                    valid_mask[idx] = False
-            
-            # Filter to valid strikes only
-            strikes_vec = np.array(shared_strikes)[valid_mask]
-            c1_vec = c1_arr[valid_mask]
-            p1_vec = p1_arr[valid_mask]
-            c2_vec = c2_arr[valid_mask]
-            p2_vec = p2_arr[valid_mask]
-            
-            if len(strikes_vec) == 0: continue
+            c1_vec = np.array([price_pivot.loc[(k, 'C'), t1_dt] for k in shared_strikes])
+            p1_vec = np.array([price_pivot.loc[(k, 'P'), t1_dt] for k in shared_strikes])
+            c2_vec = np.array([price_pivot.loc[(k, 'C'), t2_dt] for k in shared_strikes])
+            p2_vec = np.array([price_pivot.loc[(k, 'P'), t2_dt] for k in shared_strikes])
+            strikes_vec = np.array(shared_strikes)
             
             # Execute Numba core loop
-            # Returns a matrix [num_strikes, 5] --> [Price_C, Price_P, IV_C, IV_P, F_star]
+            # Returns a matrix [num_strikes, 5] --> [Price_C, Price_P, IV_star, F_star, _]
             batch_results = process_synthetic_strikes_loop(
                 strikes_vec, c1_vec, p1_vec, c2_vec, p2_vec,
-                s0, r, T1, T2, t_star
+                s0, r, T1, T2, t_star, F1, F2
             )
-            
-            # The current process_synthetic_strikes_loop calculates F1, F2 per strike 
-            # as it did in the original loop.
             
             for idx in range(len(strikes_vec)):
                 k = strikes_vec[idx]
-                price_c, price_p, iv_c, iv_p, F_star = batch_results[idx]
+                price_c, price_p, iv_star, F_star, _ = batch_results[idx]
                 
-                # Append Call result
-                if price_c > 0 and iv_c > 1e-4:
+                if iv_star > 1e-4 and F_star > 1e-3:
+                    # Save both to maintain parity
                     results.append([
                         dt_pd.strftime('%Y-%m-%d'), t_star_dt.strftime('%Y-%m-%d'), tgt['tag'],
-                        round(t_star * 365, 2), k, 'C', round(price_c, 4), round(iv_c, 4), round(F_star, 4)
+                        round(t_star * 365, 2), k, 'C', round(price_c, 4), round(iv_star, 4), round(F_star, 4)
                     ])
-                
-                # Append Put result
-                if price_p > 0 and iv_p > 1e-4:
                     results.append([
                         dt_pd.strftime('%Y-%m-%d'), t_star_dt.strftime('%Y-%m-%d'), tgt['tag'],
-                        round(t_star * 365, 2), k, 'P', round(price_p, 4), round(iv_p, 4), round(F_star, 4)
+                        round(t_star * 365, 2), k, 'P', round(price_p, 4), round(iv_star, 4), round(F_star, 4)
                     ])
         
         if (i+1) % 100 == 0:

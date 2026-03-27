@@ -2,6 +2,9 @@ import math
 import numpy as np
 from numba import njit
 
+# --- Constants for Yield and Interpolation ---
+MIN_T_FOR_YIELD = 2 / 365.0  # Threshold to avoid division by near-zero T1 (Bug 3)
+
 @njit(cache=True)
 def _cdf(x):
     """Cumulative normal distribution function."""
@@ -38,12 +41,16 @@ def black_iv(market_price, F, K, T, r, is_call):
     # Bisection search range
     lo, hi = 1e-5, 5.0
     
-    # Check if price at max vol is still below market price
+    # Check if price at max vol is still below market price (Upper Bound check)
     if black_price(F, K, T, hi, r, is_call) < market_price:
-        return 5.0 # cap at 500%
+        return 5.0 
+
+    # Check if price at min vol is already above market price (Lower Bound check - Bug 4)
+    if black_price(F, K, T, lo, r, is_call) >= market_price:
+        return lo
         
     # Robust bisection
-    for _ in range(40): # Enough iterations for high precision
+    for _ in range(40): 
         mid = (lo + hi) / 2.0
         if black_price(F, K, T, mid, r, is_call) < market_price:
             lo = mid
@@ -55,67 +62,61 @@ def black_iv(market_price, F, K, T, r, is_call):
 @njit(cache=True)
 def process_synthetic_strikes_loop(strikes, 
                                  c1_arr, p1_arr, c2_arr, p2_arr, 
-                                 s0, r, T1, T2, t_star):
+                                 s0, r, T1, T2, t_star,
+                                 F1, F2):
     """
     Core numerical loop for a single (Date, Target) pair.
-    Calculates yields, forward star, and synthetic prices/IVs for all strikes.
+    Uses pre-computed shared forwards F1, F2 to ensure consistency across strikes (Bug 2).
+    Averages Call/Put IVs to maintain Put-Call Parity at T* (Bug 3).
     """
-    # Pre-allocate results: [Price_C, Price_P, IV_C, IV_P, F_star]
     num_strikes = len(strikes)
+    # Result: [Price_C, Price_P, IV_star, F_star, unused]
     results = np.zeros((num_strikes, 5))
     
-    exp_rT1 = math.exp(r * T1)
-    exp_rT2 = math.exp(r * T2)
+    # 1. Shared Yields and Forward Star (Constant for all strikes in this loop)
+    q2 = r - math.log(F2 / s0) / T2
+    # Use fallback if T1 is too close to expiry to avoid noisy yield (Bug 5)
+    q1 = (r - math.log(F1 / s0) / T1) if T1 > MIN_T_FOR_YIELD else q2
+    
+    # Clip yield to reasonable range [-1.0, 1.0]
+    q1 = max(-1.0, min(1.0, q1))
+    q2 = max(-1.0, min(1.0, q2))
+    
+    # Interpolate yield and forward star
+    q_star = ((T2 - t_star) / (T2 - T1)) * q1 + ((t_star - T1) / (T2 - T1)) * q2
+    F_star = s0 * math.exp((r - q_star) * t_star)
     
     for i in range(num_strikes):
         k = strikes[i]
         c1, p1 = c1_arr[i], p1_arr[i]
         c2, p2 = c2_arr[i], p2_arr[i]
         
-        # 1. Forward Prices at T1 and T2 (Put-Call Parity)
-        F1 = k + (c1 - p1) * exp_rT1
-        F2 = k + (c2 - p2) * exp_rT2
-        
-        # Sanity check for F (must be within 20% of spot theoretically for ETFs)
-        if F1 <= 1e-3 or F2 <= 1e-3 or abs(F1/s0 - 1) > 0.2 or abs(F2/s0 - 1) > 0.2:
-            continue
-            
-        # 2. Yields calculation
-        q2 = r - math.log(F2 / s0) / T2
-        q1 = (r - math.log(F1 / s0) / T1) if T1 > (2/365.0) else q2
-        
-        # Clip yield to reasonable range [-1.0, 1.0]
-        if q1 > 1.0: q1 = 1.0
-        elif q1 < -1.0: q1 = -1.0
-        if q2 > 1.0: q2 = 1.0
-        elif q2 < -1.0: q2 = -1.0
-        
-        # 3. Interpolate yield and forward star
-        q_star = ((T2 - t_star) / (T2 - T1)) * q1 + ((t_star - T1) / (T2 - T1)) * q2
-        F_star = s0 * math.exp((r - q_star) * t_star)
-        
-        # 4. Implied Vols at T1 and T2
+        # 2. Implied Vols at T1 and T2 - Average C and P for parity consistency
         iv1_c = black_iv(c1, F1, k, T1, r, True)
         iv1_p = black_iv(p1, F1, k, T1, r, False)
+        iv1 = (iv1_c + iv1_p) / 2.0
+        
         iv2_c = black_iv(c2, F2, k, T2, r, True)
         iv2_p = black_iv(p2, F2, k, T2, r, False)
+        iv2 = (iv2_c + iv2_p) / 2.0
         
-        # 5. Interpolate in Total Variance for each type
-        # Call interpolation
-        w_star_c = ((T2 - t_star) / (T2 - T1)) * (iv1_c**2 * T1) + ((t_star - T1) / (T2 - T1)) * (iv2_c**2 * T2)
-        iv_star_c = math.sqrt(max(0.0, w_star_c / t_star))
-        price_star_c = black_price(F_star, k, t_star, iv_star_c, r, True)
+        # 3. Interpolate in Total Variance (Bug 5: skip noisy T1 if near expiry)
+        if T1 <= MIN_T_FOR_YIELD:
+            iv_star = iv2
+        else:
+            w1 = (T2 - t_star) / (T2 - T1)
+            w2 = (t_star - T1) / (T2 - T1)
+            var_star = w1 * (iv1**2 * T1) + w2 * (iv2**2 * T2)
+            iv_star = math.sqrt(max(0.0, var_star / t_star))
         
-        # Put interpolation
-        w_star_p = ((T2 - t_star) / (T2 - T1)) * (iv1_p**2 * T1) + ((t_star - T1) / (T2 - T1)) * (iv2_p**2 * T2)
-        iv_star_p = math.sqrt(max(0.0, w_star_p / t_star))
-        price_star_p = black_price(F_star, k, t_star, iv_star_p, r, False)
+        # 4. Reprice both from SAME iv_star and F_star to preserve PCP
+        price_star_c = black_price(F_star, k, t_star, iv_star, r, True)
+        price_star_p = black_price(F_star, k, t_star, iv_star, r, False)
         
         # Store results
         results[i, 0] = price_star_c
         results[i, 1] = price_star_p
-        results[i, 2] = iv_star_c
-        results[i, 3] = iv_star_p
-        results[i, 4] = F_star
+        results[i, 2] = iv_star
+        results[i, 3] = F_star
         
     return results
