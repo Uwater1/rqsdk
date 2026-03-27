@@ -93,6 +93,12 @@ def process_underlying(underlying_symbol):
     # Add maturity info
     full_data = prices_df.merge(inst_df[['order_book_id', 'maturity_date', 'option_type']], on='order_book_id')
     full_data['maturity_date'] = pd.to_datetime(full_data['maturity_date'])
+
+    # Deduplicate: adjusted-strike contracts can share (date, strike, type, maturity)
+    # with different order_book_ids. Keep the highest-volume contract to avoid pivot crash.
+    full_data = (full_data
+                 .sort_values('volume', ascending=False)
+                 .drop_duplicates(subset=['date', 'strike_price', 'option_type', 'maturity_date'], keep='first'))
     
     results = []
     trading_dates = sorted(full_data['date'].unique())
