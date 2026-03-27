@@ -213,14 +213,15 @@ def find_best_boxes(c_ask, c_bid, p_ask, p_bid, ks, dte):
                 if cb1 > 0 and ca2 > 0 and pb2 > 0 and pa1 > 0:
                     # Minus commission to open (4 legs * 0.2)
                     credit = (cb1 - ca2) + (pb2 - pa1) - BOX_COMMISSION
-                    r = (credit - payout) / payout
-                    if r > short_ret[t]:
-                        short_K1[t]     = K1
-                        short_K2[t]     = K2
-                        short_credit[t] = credit
-                        short_margin[t] = payout
-                        short_ret[t]    = r
-                        short_ann[t]    = r * ann_factor
+                    if credit > 0:
+                        r = (credit - payout) / payout
+                        if r > short_ret[t]:
+                            short_K1[t]     = K1
+                            short_K2[t]     = K2
+                            short_credit[t] = credit
+                            short_margin[t] = payout
+                            short_ret[t]    = r
+                            short_ann[t]    = r * ann_factor
 
     return (long_K1, long_K2, long_cost, long_payout, long_ret, long_ann,
             short_K1, short_K2, short_credit, short_margin, short_ret, short_ann)
@@ -339,7 +340,7 @@ def run_scanner(date_dir: str, out_dir: str = '.'):
                 if dte == min_dte:
                     if mn not in near_best or r['long_ann'] > near_best[mn]['long_ann']:
                         near_best[mn] = r
-                elif mid_dte is not None and dte == mid_dte:
+                elif mid_dte is not None and mid_dte <= 60 and dte == mid_dte:
                     if mn not in mid_best or r['long_ann'] > mid_best[mn]['long_ann']:
                         mid_best[mn] = r
 
@@ -384,8 +385,9 @@ def _short_row(mn, r):
 
 def write_csvs(near_best, mid_best, short_best, date_str, out_dir):
     """Write 3 CSV files."""
+    all_mins = sorted(set(near_best) | set(mid_best) | set(short_best))
+
     def to_df(best_dict, row_fn, header, empty_row):
-        all_mins = sorted(set(near_best) | set(mid_best) | set(short_best))
         rows = []
         for mn in all_mins:
             if mn in best_dict:
