@@ -20,6 +20,23 @@
 - **`filter.txt`**: Comprehensive catalog of 20+ individual technical filters (SMA, RSI, MACD, etc.) detailing their specific impact on win rates and maximum drawdown.
 - **`filter2.txt`**: Evaluation and ranking of top-performing *combined* filters. Identifies optimal logic (e.g., Rank 2: Bollinger Upper + ROC Momentum) for minimizing loss while maintaining trade frequency.
 
+### 4. Box Spread Arbitrage (`boxx.py`, `boxx_etf.py`)
+- **Box Spread Scanner**: Real-time scanners for CFFEX index and ETF options that identify risk-free arbitrage opportunities.
+- **Profit Modeling**: Incorporates precise commission and exercise cost calculations for margin detection.
+- **Usage**:
+  ```bash
+  python boxx.py <data_dir/YYYY-MM-DD> [output_dir]
+  python boxx_etf.py <data_dir/YYYY-MM-DD> [output_dir]
+  ```
+
+### 5. Winning Option Selection (`evaluate_combinations.py`)
+- **Strategy Optimizer**: Backtests combinations of technical indicators (RSI, MACD, etc.) to identify high-probability entry points for OTM options.
+- **Ranking System**: Ranks indicator sets by win rate and drawdown to isolate "winning" setups.
+- **Usage**:
+  ```bash
+  python evaluate_combinations.py
+  ```
+
 ## Getting Started
 
 1. Activate the environment: `source venv/bin/activate`
