@@ -165,7 +165,7 @@ def process_underlying(underlying_symbol):
 
             if t1_dt is None or t2_dt is None: continue
 
-            etf_expiry_dates = spot_df.index[spot_df.index <= t_star_dt] if 'spot_df' in locals() and hasattr(spot_df, 'index') else pd.DatetimeIndex([])
+            etf_expiry_dates = spot_df.index[spot_df.index <= t_star_dt]
             if etf_expiry_dates.empty:
                 st = spot_map.get(t_star_dt)
             else:
