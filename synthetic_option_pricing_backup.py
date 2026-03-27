@@ -1,14 +1,9 @@
 import os
 import math
-import re
 import pandas as pd
 import numpy as np
-import rqdatac
 from datetime import datetime, timedelta
 from numba_utils import process_synthetic_strikes_loop, black_price, black_iv
-
-# Initialize rqdatac for trading calendar
-rqdatac.init()
 
 # --- Configuration ---
 UNDERLYINGS = ['510050.XSHG', '510300.XSHG', '510500.XSHG']
@@ -20,80 +15,34 @@ SYMBOL_MAP = {
 DATA_DIR = 'data'
 RFR_FILE = os.path.join(DATA_DIR, 'interest_free_rate.csv')
 
+# Black-Scholes functions are now imported from numba_utils
+
 # --- Calendar Logic ---
 class TargetExpiryGenerator:
-    WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    _trading_dates_cache = None
-
-    @staticmethod
-    def get_trading_dates():
-        """Retrieve and cache trading dates for fast lookup."""
-        if TargetExpiryGenerator._trading_dates_cache is None:
-            # Load a wide range of trading dates to handle all historical and near-future targets
-            dates = rqdatac.get_trading_dates(start_date='2015-01-01', end_date='2027-12-31')
-            TargetExpiryGenerator._trading_dates_cache = sorted([pd.Timestamp(d) for d in dates])
-        return TargetExpiryGenerator._trading_dates_cache
-
+    WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri"]
+    
     @staticmethod
     def get_tag(date):
         wd = date.weekday()
         if wd > 4: return None
         n = (date.day - 1) // 7 + 1
-        return f"{n}{'st' if n==1 else 'nd' if n==2 else 'rd' if n==3 else 'th'} {TargetExpiryGenerator.WEEKDAY_NAMES[wd][:3]}"
-
-    @staticmethod
-    def get_date_by_n_weekday(year, month, n, weekday):
-        """Find the n-th occurrence of a weekday in a given month."""
-        first_day = datetime(year, month, 1)
-        first_occurrence_offset = (weekday - first_day.weekday()) % 7
-        target_date = first_day + timedelta(days=first_occurrence_offset + (n - 1) * 7)
-        if target_date.month == month:
-            return target_date
-        return None
+        return f"{n}{'st' if n==1 else 'nd' if n==2 else 'rd' if n==3 else 'th'} {TargetExpiryGenerator.WEEKDAY_NAMES[wd]}"
 
     @staticmethod
     def get_target_expiries(current_date):
-        """Implement 'Same Tag Next Month' logic with holiday handling."""
-        tag = TargetExpiryGenerator.get_tag(current_date)
-        if not tag: return []
-        
-        # Match tag (e.g., '3rd Fri') to n=3, weekday=4
-        match = re.search(r'(\d+)\w+ (\w+)', tag)
-        if not match: return []
-        n = int(match.group(1))
-        wd_str = match.group(2)
-        wd_idx = [name[:3] for name in TargetExpiryGenerator.WEEKDAY_NAMES].index(wd_str)
-
-        # Determine target month
-        if current_date.month == 12:
-            next_month, next_year = 1, current_date.year + 1
-        else:
-            next_month, next_year = current_date.month + 1, current_date.year
-            
-        target_date = TargetExpiryGenerator.get_date_by_n_weekday(next_year, next_month, n, wd_idx)
-        
-        # If target doesn't exist (e.g., 5th Monday in Feb), discard
-        if not target_date:
-            return []
-            
-        # Holiday handling: use next nearest trading date
-        all_trading_dates = TargetExpiryGenerator.get_trading_dates()
-        target_ts = pd.Timestamp(target_date)
-        
-        import bisect
-        idx = bisect.bisect_left(all_trading_dates, target_ts)
-        if idx < len(all_trading_dates):
-            final_target = all_trading_dates[idx]
-        else:
-            return [] # fallback
-            
-        days = (final_target - current_date).days
-        return [{
-            'expiry_date': final_target,
-            'tag': tag,
-            'T_star': days / 365.0,
-            'days': days
-        }]
+        targets = []
+        # Widen range to [25, 42] days to handle month variance and holidays (Bug 5)
+        for i in range(25, 43): 
+            future_date = current_date + timedelta(days=i)
+            tag = TargetExpiryGenerator.get_tag(future_date)
+            if tag:
+                targets.append({
+                    'expiry_date': future_date,
+                    'tag': tag,
+                    'T_star': i / 365.0,
+                    'days': i
+                })
+        return targets
 
 # --- Core Processor ---
 def process_underlying(underlying_symbol):
@@ -111,12 +60,13 @@ def process_underlying(underlying_symbol):
     spot_map = spot_df.set_index(pd.to_datetime(spot_df['date']))['close'].to_dict()
     
     # Add maturity info
+    # Ensure strike_price is pulled from inst_df as source of truth (Bug 1)
     if 'strike_price' in prices_df.columns:
         prices_df = prices_df.drop(columns=['strike_price'])
     full_data = prices_df.merge(inst_df[['order_book_id', 'maturity_date', 'option_type', 'strike_price']], on='order_book_id')
     full_data['maturity_date'] = pd.to_datetime(full_data['maturity_date'])
 
-    # Deduplicate
+    # Deduplicate: kept from previous bugfix
     full_data = (full_data
                  .sort_values('volume', ascending=False)
                  .drop_duplicates(subset=['date', 'strike_price', 'option_type', 'maturity_date'], keep='first'))
@@ -159,27 +109,31 @@ def process_underlying(underlying_symbol):
             T1 = max((t1_dt - dt_pd).days / 365.0, 1e-6)
             T2 = (t2_dt - dt_pd).days / 365.0
             
-            # Robust Forward calculation (Median of near-ATM strikes)
+            # --- Robust Forward Price Calculation (Bug 2) ---
             def get_robust_forward(mat_dt, T, spot):
+                # Filter to near-ATM strikes (±10%)
                 mask = (price_pivot.index.get_level_values('strike_price') >= spot * 0.9) & \
                        (price_pivot.index.get_level_values('strike_price') <= spot * 1.1)
                 atm_data = price_pivot.loc[mask, mat_dt].unstack()
                 if 'C' not in atm_data or 'P' not in atm_data: 
-                    return spot * math.exp(r * T)
+                    return spot * math.exp(r * T) # dummy fallback
                 
                 atm_pairs = atm_data.dropna(subset=['C', 'P'])
-                if atm_pairs.empty: return spot * math.exp(r * T)
+                if atm_pairs.empty: 
+                    return spot * math.exp(r * T)
                 
                 k_vec = atm_pairs.index.values
                 c_vec = atm_pairs['C'].values
                 p_vec = atm_pairs['P'].values
+                # F = K + (C - P) * e^(rT)
                 f_vec = k_vec + (c_vec - p_vec) * math.exp(r * T)
-                return np.median(f_vec)
+                return np.median(f_vec) # Use median for robustness against outliers
 
             F1 = get_robust_forward(t1_dt, T1, s0)
             F2 = get_robust_forward(t2_dt, T2, s0)
 
-            # Pre-filter strikes available at BOTH maturities
+            # --- PRE-FILTERING (Bug 6) ---
+            # We need strikes with C and P available at BOTH maturities
             avail_c1 = price_pivot.xs('C', level='option_type')[t1_dt].dropna().index
             avail_p1 = price_pivot.xs('P', level='option_type')[t1_dt].dropna().index
             avail_c2 = price_pivot.xs('C', level='option_type')[t2_dt].dropna().index
@@ -197,6 +151,7 @@ def process_underlying(underlying_symbol):
             strikes_vec = np.array(shared_strikes)
             
             # Execute Numba core loop
+            # Returns a matrix [num_strikes, 5] --> [Price_C, Price_P, IV_star, F_star, _]
             batch_results = process_synthetic_strikes_loop(
                 strikes_vec, c1_vec, p1_vec, c2_vec, p2_vec,
                 s0, r, T1, T2, t_star, F1, F2
@@ -205,18 +160,20 @@ def process_underlying(underlying_symbol):
             for idx in range(len(strikes_vec)):
                 k = strikes_vec[idx]
                 price_c, price_p, iv_star, F_star, _ = batch_results[idx]
+                
                 if iv_star > 1e-4 and F_star > 1e-3:
+                    # Save both to maintain parity
                     results.append([
                         dt_pd.strftime('%Y-%m-%d'), t_star_dt.strftime('%Y-%m-%d'), tgt['tag'],
                         round(t_star * 365, 2), k, 'C', round(price_c, 4), round(iv_star, 4), round(F_star, 4)
                     ])
                     results.append([
                         dt_pd.strftime('%Y-%m-%d'), t_star_dt.strftime('%Y-%m-%d'), tgt['tag'],
-                        round(t_star * 365, 2), k, 'P', round(price_c, 4), round(iv_star, 4), round(F_star, 4)
+                        round(t_star * 365, 2), k, 'P', round(price_p, 4), round(iv_star, 4), round(F_star, 4)
                     ])
         
         if (i+1) % 100 == 0:
-            print(f"  Progress: {i+1}/{total_dates} ({(i+1)/total_dates*100:.1f}%) | Date: {dt_pd.date()} | Results: {len(results)}")
+            print(f"  Progress: {i+1}/{total_dates} ({(i+1)/total_dates*100:.1f}%) | Current Date: {dt_pd.date()} | Results: {len(results)}")
 
     output_file = f"synthetic_options_{prefix}.parquet"
     columns = ['Date', 'Target Expiry', 'Weekday Tag', 'DaysToExpiry', 'Strike', 'Option Type', 'Price', 'IV', 'Forward']
