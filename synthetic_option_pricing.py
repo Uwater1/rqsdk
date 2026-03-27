@@ -284,5 +284,5 @@ if __name__ == "__main__":
         for und in UNDERLYINGS:
             process_underlying(und)
     else:
-        symbol = f"510{args.etf}.XSHG" if args.etf != '300' else "510300.XSHG"
+        symbol = {'50': '510050.XSHG', '300': '510300.XSHG', '500': '510500.XSHG'}[args.etf]
         process_underlying(symbol)
