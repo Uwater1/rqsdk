@@ -2,8 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from scipy.stats import norm
-from scipy.optimize import brentq
+from numba_utils import process_synthetic_strikes_loop, black_price, black_iv
 
 # --- Configuration ---
 UNDERLYINGS = ['510050.XSHG', '510300.XSHG', '510500.XSHG']
@@ -15,39 +14,7 @@ SYMBOL_MAP = {
 DATA_DIR = 'data'
 RFR_FILE = os.path.join(DATA_DIR, 'interest_free_rate.csv')
 
-# --- Black-Scholes Engine ---
-class BlackScholesEngine:
-    @staticmethod
-    def price(F, K, T, sigma, r, option_type='C'):
-        if T <= 0:
-            return max(0.0, F - K if option_type == 'C' else K - F) * np.exp(-r * T)
-        if sigma <= 0:
-            return max(0.0, F - K if option_type == 'C' else K - F) * np.exp(-r * T)
-        
-        d1 = (np.log(F / K) + 0.5 * sigma**2 * T) / (sigma * np.sqrt(T))
-        d2 = d1 - sigma * np.sqrt(T)
-        
-        if option_type == 'C':
-            price = np.exp(-r * T) * (F * norm.cdf(d1) - K * norm.cdf(d2))
-        else:
-            price = np.exp(-r * T) * (K * norm.cdf(-d2) - F * norm.cdf(-d1))
-        return price
-
-    @staticmethod
-    def implied_vol(market_price, F, K, T, r, option_type='C'):
-        if T <= 0: return 0.0
-        
-        intrinsic = max(0.0, (F - K if option_type == 'C' else K - F) * np.exp(-r * T))
-        if market_price <= intrinsic + 1e-7:
-            return 0.0001
-            
-        def func(s):
-            return BlackScholesEngine.price(F, K, T, s, r, option_type) - market_price
-        
-        try:
-            return brentq(func, 1e-6, 5.0, xtol=1e-6)
-        except:
-            return 0.0
+# Black-Scholes functions are now imported from numba_utils
 
 # --- Calendar Logic ---
 class TargetExpiryGenerator:
@@ -146,68 +113,72 @@ def process_underlying(underlying_symbol):
             # Group by strike to ensure we have both Call and Put for Forward calculation
             strikes = shared_mats.index.get_level_values('strike_price').unique()
             
-            for k in strikes:
+            # Group by strike to ensure we have both Call and Put for Forward calculation
+            shared_strikes = sorted(shared_mats.index.get_level_values('strike_price').unique())
+            
+            # Prepare arrays for Numba
+            num_s = len(shared_strikes)
+            c1_arr = np.zeros(num_s)
+            p1_arr = np.zeros(num_s)
+            c2_arr = np.zeros(num_s)
+            p2_arr = np.zeros(num_s)
+            valid_mask = np.ones(num_s, dtype=np.bool_)
+            
+            for idx, k in enumerate(shared_strikes):
                 try:
-                    c1 = shared_mats.loc[(k, 'C'), t1_dt]
-                    p1 = shared_mats.loc[(k, 'P'), t1_dt]
-                    c2 = shared_mats.loc[(k, 'C'), t2_dt]
-                    p2 = shared_mats.loc[(k, 'P'), t2_dt]
+                    c1_arr[idx] = shared_mats.loc[(k, 'C'), t1_dt]
+                    p1_arr[idx] = shared_mats.loc[(k, 'P'), t1_dt]
+                    c2_arr[idx] = shared_mats.loc[(k, 'C'), t2_dt]
+                    p2_arr[idx] = shared_mats.loc[(k, 'P'), t2_dt]
                 except KeyError:
-                    continue # Need both C and P
+                    valid_mask[idx] = False
+            
+            # Filter to valid strikes only
+            strikes_vec = np.array(shared_strikes)[valid_mask]
+            c1_vec = c1_arr[valid_mask]
+            p1_vec = p1_arr[valid_mask]
+            c2_vec = c2_arr[valid_mask]
+            p2_vec = p2_arr[valid_mask]
+            
+            if len(strikes_vec) == 0: continue
+            
+            # Execute Numba core loop
+            # Returns a matrix [num_strikes, 5] --> [Price_C, Price_P, IV_C, IV_P, F_star]
+            batch_results = process_synthetic_strikes_loop(
+                strikes_vec, c1_vec, p1_vec, c2_vec, p2_vec,
+                s0, r, T1, T2, t_star
+            )
+            
+            # The current process_synthetic_strikes_loop calculates F1, F2 per strike 
+            # as it did in the original loop.
+            
+            for idx in range(len(strikes_vec)):
+                k = strikes_vec[idx]
+                price_c, price_p, iv_c, iv_p, F_star = batch_results[idx]
                 
-                # F = K + (C - P) * e^rT
-                F1 = k + (c1 - p1) * np.exp(r * T1)
-                F2 = k + (c2 - p2) * np.exp(r * T2)
-                
-                # Sanity check for F (must be within 20% of spot theoretically for ETFs)
-                if F1 <= 1e-3 or F2 <= 1e-3 or abs(F1/s0 - 1) > 0.2 or abs(F2/s0 - 1) > 0.2:
-                    continue
-                
-                # q = r - ln(F/S0)/T. If T is too small, use q2 to avoid noise
-                q2 = r - np.log(F2 / s0) / T2
-                q1 = (r - np.log(F1 / s0) / T1) if T1 > (2/365.0) else q2
-                
-                # Clip yield to reasonable range [-100%, 100%]
-                q1 = np.clip(q1, -1.0, 1.0)
-                q2 = np.clip(q2, -1.0, 1.0)
-                
-                # Interpolate r, q, F_star
-                q_star = ((T2 - t_star) / (T2 - T1)) * q1 + ((t_star - T1) / (T2 - T1)) * q2
-                F_star = s0 * np.exp((r - q_star) * t_star)
-                
-                for opt_type in ['C', 'P']:
-                    mkt1 = c1 if opt_type == 'C' else p1
-                    mkt2 = c2 if opt_type == 'C' else p2
-                    
-                    iv1 = BlackScholesEngine.implied_vol(mkt1, F1, k, T1, r, opt_type)
-                    iv2 = BlackScholesEngine.implied_vol(mkt2, F2, k, T2, r, opt_type)
-                    
-                    if iv1 <= 0 or iv2 <= 0: continue
-                    
-                    # Interpolate in Total Variance
-                    w_star = ((T2 - t_star) / (T2 - T1)) * (iv1**2 * T1) + ((t_star - T1) / (T2 - T1)) * (iv2**2 * T2)
-                    iv_star = np.sqrt(w_star / t_star)
-                    
-                    price_star = BlackScholesEngine.price(F_star, k, t_star, iv_star, r, opt_type)
-                    
+                # Append Call result
+                if price_c > 0 and iv_c > 1e-4:
                     results.append([
-                        dt_pd.strftime('%Y-%m-%d'),
-                        t_star_dt.strftime('%Y-%m-%d'),
-                        tgt['tag'],
-                        round(t_star * 365, 2),
-                        k,
-                        opt_type,
-                        round(price_star, 4),
-                        round(iv_star, 4),
-                        round(F_star, 4)
+                        dt_pd.strftime('%Y-%m-%d'), t_star_dt.strftime('%Y-%m-%d'), tgt['tag'],
+                        round(t_star * 365, 2), k, 'C', round(price_c, 4), round(iv_c, 4), round(F_star, 4)
+                    ])
+                
+                # Append Put result
+                if price_p > 0 and iv_p > 1e-4:
+                    results.append([
+                        dt_pd.strftime('%Y-%m-%d'), t_star_dt.strftime('%Y-%m-%d'), tgt['tag'],
+                        round(t_star * 365, 2), k, 'P', round(price_p, 4), round(iv_p, 4), round(F_star, 4)
                     ])
         
         if (i+1) % 100 == 0:
             print(f"  Progress: {i+1}/{total_dates} ({(i+1)/total_dates*100:.1f}%) | Current Date: {dt_pd.date()} | Results: {len(results)}")
 
-    output_file = f"synthetic_options_{prefix}.csv"
+    output_file = f"synthetic_options_{prefix}.parquet"
     columns = ['Date', 'Target Expiry', 'Weekday Tag', 'DaysToExpiry', 'Strike', 'Option Type', 'Price', 'IV', 'Forward']
-    pd.DataFrame(results, columns=columns).to_csv(output_file, index=False)
+    df_results = pd.DataFrame(results, columns=columns)
+    df_results['Date'] = pd.to_datetime(df_results['Date'])
+    df_results['Target Expiry'] = pd.to_datetime(df_results['Target Expiry'])
+    df_results.to_parquet(output_file, index=False)
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Finished {prefix}. Saved to {output_file}")
 
 if __name__ == "__main__":
