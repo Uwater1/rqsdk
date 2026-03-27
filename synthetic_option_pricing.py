@@ -19,6 +19,7 @@ SYMBOL_MAP = {
 }
 DATA_DIR = 'data'
 RFR_FILE = os.path.join(DATA_DIR, 'interest_free_rate.csv')
+SLIPPAGE = 0.02
 
 # --- Calendar Logic ---
 class TargetExpiryGenerator:
@@ -156,6 +157,9 @@ def process_underlying(underlying_symbol):
             
             if t1_dt is None or t2_dt is None: continue
             
+            st = spot_map.get(t_star_dt)
+            # st could be None if the expiry is in the future relative to our data
+            
             T1 = max((t1_dt - dt_pd).days / 365.0, 1e-6)
             T2 = (t2_dt - dt_pd).days / 365.0
             
@@ -205,21 +209,47 @@ def process_underlying(underlying_symbol):
             for idx in range(len(strikes_vec)):
                 k = strikes_vec[idx]
                 price_c, price_p, iv_star, F_star, _ = batch_results[idx]
+                
                 if iv_star > 1e-4 and F_star > 1e-3:
+                    # Calculate Returns and Worthless Flag
+                    # Note: We use st (Expiry Price) which might be None
+                    
+                    def calc_metrics(opt_price, payoff):
+                        if st is None or opt_price <= 0:
+                            return None, None, None, None
+                        
+                        buy_p = opt_price * (1 + SLIPPAGE)
+                        sell_p = opt_price * (1 - SLIPPAGE)
+                        
+                        expire_worthless = 1 if payoff <= 0 else 0
+                        ret_long = (payoff - buy_p) / buy_p
+                        ret_short = (sell_p - payoff) / sell_p
+                        return round(st, 4), expire_worthless, round(ret_long, 4), round(ret_short, 4)
+
+                    # Call
+                    st_val, c_worthless, c_ret_l, c_ret_s = calc_metrics(price_c, max(st - k, 0) if st is not None else 0)
                     results.append([
                         dt_pd.strftime('%Y-%m-%d'), t_star_dt.strftime('%Y-%m-%d'), tgt['tag'],
-                        round(t_star * 365, 2), k, 'C', round(price_c, 4), round(iv_star, 4), round(F_star, 4)
+                        round(t_star * 365, 2), k, 'C', round(price_c, 4), round(iv_star, 4), round(F_star, 4),
+                        round(s0, 4), st_val, c_worthless, c_ret_l, c_ret_s
                     ])
+                    
+                    # Put
+                    st_val, p_worthless, p_ret_l, p_ret_s = calc_metrics(price_p, max(k - st, 0) if st is not None else 0)
                     results.append([
                         dt_pd.strftime('%Y-%m-%d'), t_star_dt.strftime('%Y-%m-%d'), tgt['tag'],
-                        round(t_star * 365, 2), k, 'P', round(price_c, 4), round(iv_star, 4), round(F_star, 4)
+                        round(t_star * 365, 2), k, 'P', round(price_p, 4), round(iv_star, 4), round(F_star, 4),
+                        round(s0, 4), st_val, p_worthless, p_ret_l, p_ret_s
                     ])
         
         if (i+1) % 100 == 0:
             print(f"  Progress: {i+1}/{total_dates} ({(i+1)/total_dates*100:.1f}%) | Date: {dt_pd.date()} | Results: {len(results)}")
 
     output_file = f"synthetic_options_{prefix}.parquet"
-    columns = ['Date', 'Target Expiry', 'Weekday Tag', 'DaysToExpiry', 'Strike', 'Option Type', 'Price', 'IV', 'Forward']
+    columns = [
+        'Date', 'Target Expiry', 'Weekday Tag', 'DaysToExpiry', 'Strike', 'Option Type', 'Price', 'IV', 'Forward',
+        'Underlying Price at Date', 'Underlying Price at Expiry', 'Expire_worthless', 'Exp Ret Long', 'Exp Ret Short'
+    ]
     df_results = pd.DataFrame(results, columns=columns)
     df_results['Date'] = pd.to_datetime(df_results['Date'])
     df_results['Target Expiry'] = pd.to_datetime(df_results['Target Expiry'])
