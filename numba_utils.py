@@ -159,74 +159,90 @@ def calculate_research_metrics_numba(strikes, s0s, ret_val, prices, worthless, b
         
         # Since group is sorted by Strike (ASC):
         if is_short_call:
-            # Find last index where strike <= s0
+            # Call: OTM strikes are > s0, sorted ascending. ATM is last strike <= s0.
             atm_idx = -1
+            first_otm_idx = start
             for i in range(start, end):
                 if strikes[i] <= s0:
                     atm_idx = i
+                    first_otm_idx = i + 1
                 else:
                     break
             
+            idx_list = []
             if atm_idx != -1:
-                # Level 0
-                idx_list = [atm_idx]
-                # Levels 1-5 (Strikes > s0)
-                for i in range(atm_idx + 1, end):
-                    if len(idx_list) >= 6: break
-                    idx_list.append(i)
+                idx_list.append(atm_idx)
+            else:
+                idx_list.append(-1) # No Level 0 available
                 
-                # Process collected levels
-                for lv in range(len(idx_list)):
-                    idx = idx_list[lv]
-                    ret = ret_val[idx]
-                    prc = prices[idx]
-                    wth = worthless[idx]
-                    
-                    if np.isnan(ret): continue
-                    
-                    # Short Call calculation
-                    sell_p = prc * (1.0 - SLIPPAGE)
-                    pnl = ret * sell_p * MULTIPLIER - COMMISSION
-                    
-                    metrics[lv, 0] += 1
-                    metrics[lv, 1] += pnl
-                    if pnl > 0: metrics[lv, 2] += 1
-                    if wth == 1: metrics[lv, 3] += 1
-                    if pnl < metrics[lv, 4]: metrics[lv, 4] = pnl
+            # Levels 1-5 (Strikes > s0)
+            for i in range(first_otm_idx, end):
+                if len(idx_list) >= 6: break
+                idx_list.append(i)
+
+            # Process collected levels
+            for lv in range(len(idx_list)):
+                idx = idx_list[lv]
+                if idx == -1: continue # Skip if this level is missing (e.g., Level 0)
+
+                ret = ret_val[idx]
+                prc = prices[idx]
+                wth = worthless[idx]
+
+                if np.isnan(ret): continue
+
+                # Short Call calculation
+                sell_p = prc * (1.0 - SLIPPAGE)
+                pnl = ret * sell_p * MULTIPLIER - COMMISSION
+
+                metrics[lv, 0] += 1
+                metrics[lv, 1] += pnl
+                if pnl > 0: metrics[lv, 2] += 1
+                if wth == 1: metrics[lv, 3] += 1
+                if pnl < metrics[lv, 4]: metrics[lv, 4] = pnl
         else:
-            # Long Put: Level 0 is first index where strike >= s0
-            # OTM Levels (1-5) are indices BEFORE atm_idx in reverse order (decreasing strike)
+            # Long Put: OTM strikes are < s0, sorted descending (so we reverse later).
+            # ATM is first strike >= s0.
             atm_idx = -1
+            first_otm_idx = end - 1
             for i in range(start, end):
                 if strikes[i] >= s0:
                     atm_idx = i
+                    first_otm_idx = i - 1
                     break
             
+            # If no strike >= s0, all strikes are < s0. ATM is missing, but first OTM is still end-1.
+
+            idx_list = []
             if atm_idx != -1:
-                # Level 0
-                idx_list = [atm_idx]
-                # Levels 1-5 (Strikes < s0) - search backwards from atm_idx
-                for i in range(atm_idx - 1, start - 1, -1):
-                    if len(idx_list) >= 6: break
-                    idx_list.append(i)
+                idx_list.append(atm_idx)
+            else:
+                idx_list.append(-1) # No Level 0 available
                 
-                # Process collected levels
-                for lv in range(len(idx_list)):
-                    idx = idx_list[lv]
-                    ret = ret_val[idx]
-                    prc = prices[idx]
-                    wth = worthless[idx]
-                    
-                    if np.isnan(ret): continue
-                    
-                    # Long Put calculation
-                    buy_p = prc * (1.0 + SLIPPAGE)
-                    pnl = ret * buy_p * MULTIPLIER - COMMISSION
-                    
-                    metrics[lv, 0] += 1
-                    metrics[lv, 1] += pnl
-                    if pnl > 0: metrics[lv, 2] += 1
-                    if wth == 1: metrics[lv, 3] += 1
-                    if pnl < metrics[lv, 4]: metrics[lv, 4] = pnl
+            # Levels 1-5 (Strikes < s0) - search backwards
+            for i in range(first_otm_idx, start - 1, -1):
+                if len(idx_list) >= 6: break
+                idx_list.append(i)
+
+            # Process collected levels
+            for lv in range(len(idx_list)):
+                idx = idx_list[lv]
+                if idx == -1: continue
+
+                ret = ret_val[idx]
+                prc = prices[idx]
+                wth = worthless[idx]
+
+                if np.isnan(ret): continue
+
+                # Long Put calculation
+                buy_p = prc * (1.0 + SLIPPAGE)
+                pnl = ret * buy_p * MULTIPLIER - COMMISSION
+
+                metrics[lv, 0] += 1
+                metrics[lv, 1] += pnl
+                if pnl > 0: metrics[lv, 2] += 1
+                if wth == 1: metrics[lv, 3] += 1
+                if pnl < metrics[lv, 4]: metrics[lv, 4] = pnl
                     
     return metrics
