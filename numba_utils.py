@@ -120,3 +120,113 @@ def process_synthetic_strikes_loop(strikes,
         results[i, 3] = F_star
         
     return results
+
+@njit(cache=True)
+def calculate_research_metrics_numba(strikes, s0s, ret_val, prices, worthless, boundaries, is_short_call):
+    """
+    Numba-accelerated aggregation for OTM levels.
+    is_short_call: True for Short Call, False for Long Put
+    """
+    num_groups = len(boundaries) - 1
+    # levels: 0, 1, 2, 3, 4, 5
+    num_levels = 6
+    
+    # Results per level: [count, sum_pnl, sum_wins, sum_total_wins, min_pnl]
+    # Indices: 0: count, 1: sum_pnl, 2: sum_wins, 3: sum_total_wins, 4: min_pnl
+    metrics = np.zeros((num_levels, 5))
+    metrics[:, 4] = 9999999.0 # Initialize min_pnl
+    
+    # Constants for RMB
+    MULTIPLIER = 10000.0
+    COMMISSION = 2.0
+    SLIPPAGE = 0.02
+    
+    for g in range(num_groups):
+        start = boundaries[g]
+        end = boundaries[g+1]
+        
+        # s0 is same for all strikes in group
+        s0 = s0s[start]
+        
+        # Strikes are pre-sorted for this group
+        # Find ATM and OTM indices
+        # Level 0 (ATM): 
+        #   Call: strike <= s0 (closest) -> last index where strike <= s0
+        #   Put:  strike >= s0 (closest) -> first index where strike >= s0
+        # OTM Levels:
+        #   Call (Strike > s0): levels 1...5 are indices after ATM
+        #   Put (Strike < s0):  levels 1...5 are indices before ATM (reverse)
+        
+        # Since group is sorted by Strike (ASC):
+        if is_short_call:
+            # Find last index where strike <= s0
+            atm_idx = -1
+            for i in range(start, end):
+                if strikes[i] <= s0:
+                    atm_idx = i
+                else:
+                    break
+            
+            if atm_idx != -1:
+                # Level 0
+                idx_list = [atm_idx]
+                # Levels 1-5 (Strikes > s0)
+                for i in range(atm_idx + 1, end):
+                    if len(idx_list) >= 6: break
+                    idx_list.append(i)
+                
+                # Process collected levels
+                for lv in range(len(idx_list)):
+                    idx = idx_list[lv]
+                    ret = ret_val[idx]
+                    prc = prices[idx]
+                    wth = worthless[idx]
+                    
+                    if np.isnan(ret): continue
+                    
+                    # Short Call calculation
+                    sell_p = prc * (1.0 - SLIPPAGE)
+                    pnl = ret * sell_p * MULTIPLIER - COMMISSION
+                    
+                    metrics[lv, 0] += 1
+                    metrics[lv, 1] += pnl
+                    if pnl > 0: metrics[lv, 2] += 1
+                    if wth == 1: metrics[lv, 3] += 1
+                    if pnl < metrics[lv, 4]: metrics[lv, 4] = pnl
+        else:
+            # Long Put: Level 0 is first index where strike >= s0
+            # OTM Levels (1-5) are indices BEFORE atm_idx in reverse order (decreasing strike)
+            atm_idx = -1
+            for i in range(start, end):
+                if strikes[i] >= s0:
+                    atm_idx = i
+                    break
+            
+            if atm_idx != -1:
+                # Level 0
+                idx_list = [atm_idx]
+                # Levels 1-5 (Strikes < s0) - search backwards from atm_idx
+                for i in range(atm_idx - 1, start - 1, -1):
+                    if len(idx_list) >= 6: break
+                    idx_list.append(i)
+                
+                # Process collected levels
+                for lv in range(len(idx_list)):
+                    idx = idx_list[lv]
+                    ret = ret_val[idx]
+                    prc = prices[idx]
+                    wth = worthless[idx]
+                    
+                    if np.isnan(ret): continue
+                    
+                    # Long Put calculation
+                    buy_p = prc * (1.0 + SLIPPAGE)
+                    pnl = ret * buy_p * MULTIPLIER - COMMISSION
+                    
+                    metrics[lv, 0] += 1
+                    metrics[lv, 1] += pnl
+                    if pnl > 0: metrics[lv, 2] += 1
+                    if wth == 1: metrics[lv, 3] += 1
+                    if pnl < metrics[lv, 4]: metrics[lv, 4] = pnl
+                    
+    return metrics
