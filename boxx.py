@@ -19,6 +19,9 @@ import pandas as pd
 COMMISSION_PER_LEG = 0.2
 BOX_COMMISSION = 4 * COMMISSION_PER_LEG
 
+# Timeline frequency for resampling (e.g., '2s' for 2 seconds)
+TIMELINE_FREQ = '1s'
+
 
 # ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -60,8 +63,8 @@ def load_date_folder(date_dir: str) -> dict:
                 'strikes_c': sorted list of strikes with Calls,
                 'strikes_p': sorted list of strikes with Puts,
                 'common_strikes': sorted list of strikes with both C and P,
-                'df_c': {strike: DataFrame(a1, b1) resampled to 2S},
-                'df_p': {strike: DataFrame(a1, b1) resampled to 2S},
+                'df_c': {strike: DataFrame(a1, b1) resampled to TIMELINE_FREQ},
+                'df_p': {strike: DataFrame(a1, b1) resampled to TIMELINE_FREQ},
             }
         }
     """
@@ -106,9 +109,9 @@ def load_date_folder(date_dir: str) -> dict:
     return result
 
 
-def build_unified_timeline(group: dict, freq='2S'):
+def build_unified_timeline(group: dict, freq=TIMELINE_FREQ):
     """
-    Given a group (one expiry), resample each strike's prices to a unified 2-second grid,
+    Given a group (one expiry), resample each strike's prices to a unified grid,
     forward-fill (limit=1 tick, i.e. valid for 2 seconds).
 
     Returns:
@@ -129,8 +132,8 @@ def build_unified_timeline(group: dict, freq='2S'):
         all_times = all_times.union(calls[k].index)
         all_times = all_times.union(puts[k].index)
 
-    # Snap to 2-second grid (use lowercase '2s' - pandas ≥2.2)
-    all_times = all_times.floor('2s').unique().sort_values()
+    # Snap to unified grid
+    all_times = all_times.floor(freq).unique().sort_values()
 
     T = len(all_times)
     N = len(strikes)
@@ -140,9 +143,9 @@ def build_unified_timeline(group: dict, freq='2S'):
     p_bid = np.zeros((T, N), dtype=np.float64)
 
     for j, k in enumerate(strikes):
-        # Resample to 2s grid, forward-fill exactly 1 period
-        c = calls[k].resample('2s', closed='left', label='left').last().reindex(all_times).ffill(limit=1).fillna(0)
-        p = puts[k].resample('2s',  closed='left', label='left').last().reindex(all_times).ffill(limit=1).fillna(0)
+        # Resample to grid, forward-fill exactly 1 period
+        c = calls[k].resample(freq, closed='left', label='left').last().reindex(all_times).ffill(limit=1).fillna(0)
+        p = puts[k].resample(freq,  closed='left', label='left').last().reindex(all_times).ffill(limit=1).fillna(0)
         c_ask[:, j] = c['a1'].values
         c_bid[:, j] = c['b1'].values
         p_ask[:, j] = p['a1'].values
