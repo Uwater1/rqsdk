@@ -169,7 +169,7 @@ def find_best_boxes(c_ask, c_bid, p_ask, p_bid, ks, dte):
     All initialised to 0/-999 to signal "no valid box found".
     """
     T, N = c_ask.shape
-    ann_factor = 365.0 / dte
+    ann_factor = 365.0 / max(dte, 1)
 
     long_K1     = np.zeros(T, np.int64)
     long_K2     = np.zeros(T, np.int64)
