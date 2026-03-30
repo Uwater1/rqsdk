@@ -96,7 +96,7 @@ for f_name, f_mask in filters.items():
     total_filtered = 0
     total_er_passed = 0
     total_er_filtered = 0
-    min_ml = 9999999
+    min_ml = np.inf
 
     # Aggregate over levels 0-5
     for lv in range(6):
