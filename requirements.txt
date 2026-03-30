@@ -4,5 +4,7 @@ lightgbm
 pandas
 pandas_ta
 numba
+numpy
 matplotlib
 websockets
+pytz
