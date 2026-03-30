@@ -80,9 +80,7 @@ for f_name, f_mask in filters.items():
     boundaries[1:-1] = diff
     boundaries[-1] = len(sub_df)
 
-    group_filter_mask = np.zeros(len(boundaries) - 1, dtype=bool)
-    for g in range(len(boundaries) - 1):
-        group_filter_mask[g] = sub_df["Pass Filter"].values[boundaries[g]]
+    group_filter_mask = sub_df["Pass Filter"].values[boundaries[:-1]]
 
     strikes = sub_df["Strike"].values.astype(np.float64)
     s0s = sub_df["Underlying Price at Date"].values.astype(np.float64)
