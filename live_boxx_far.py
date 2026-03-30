@@ -4,7 +4,7 @@ import threading
 import pytz
 import numpy as np
 from numba import njit
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import pandas as pd
 import rqdatac
 from rqdatac import LiveMarketDataClient
@@ -12,9 +12,8 @@ from rqdatac import LiveMarketDataClient
 # ── constants ────────────────────────────────────────────────────────────────
 COMMISSION_PER_LEG = 0.2
 BOX_COMMISSION = 4 * COMMISSION_PER_LEG
-EVAL_INTERVAL = 1.0  # seconds
+EVAL_INTERVAL = 2.0  # seconds
 TZ = pytz.timezone('Asia/Shanghai')
-THRESHOLD = 0.005
 
 # ── globals ──────────────────────────────────────────────────────────────────
 tick_data = {}
@@ -51,38 +50,7 @@ def evaluate_long_box(ca1, cb1, pa1, pb1, ks, dte, box_commission):
                             
     return best_idx_i, best_idx_j, best_cost, best_payout, best_ret, best_ann
 
-@njit(cache=True)
-def evaluate_short_box(ca1, cb1, pa1, pb1, ks, dte, box_commission):
-    N = len(ks)
-    ann_factor = 365.0 / max(dte, 1.0)
-    best_ann = -999.0
-    best_idx_i = -1
-    best_idx_j = -1
-    best_credit = 0.0
-    best_margin = 0.0
-    best_ret = 0.0
-
-    for i in range(N):
-        for j in range(i + 1, N):
-            payout = float(ks[j] - ks[i])
-            if cb1[i] > 0 and ca1[j] > 0 and pb1[j] > 0 and pa1[i] > 0:
-                credit = (cb1[i] - ca1[j]) + (pb1[j] - pa1[i]) - box_commission
-                if credit > 0 and credit > payout:
-                    margin = payout
-                    r = (credit - margin) / margin
-                    if r > 0:
-                        ann = r * ann_factor
-                        if ann > best_ann:
-                            best_ann = ann
-                            best_idx_i = i
-                            best_idx_j = j
-                            best_credit = credit
-                            best_margin = margin
-                            best_ret = r
-                            
-    return best_idx_i, best_idx_j, best_credit, best_margin, best_ret, best_ann
-
-def get_3rd_friday(year: int, month: int) -> datetime.date:
+def get_3rd_friday(year: int, month: int) -> date:
     first = datetime(year, month, 1).date()
     offset = (4 - first.weekday()) % 7
     return first + timedelta(days=offset + 14)
@@ -163,13 +131,12 @@ def handle_msg(msg):
                     tick_data[oid]['b1'] = float(b1)
                     tick_data[oid]['time'] = datetime.now(TZ)
     except Exception as e:
-        pass
+        print(f"[handle_msg error] {e}", file=sys.stderr)
 
 def evaluator_loop():
-    today = datetime.now(TZ).date()
-    
     while True:
         time.sleep(EVAL_INTERVAL)
+        today = datetime.now(TZ).date()
         
         with data_lock:
             snapshot = {k: dict(v) for k, v in tick_data.items()}
@@ -209,8 +176,8 @@ def evaluator_loop():
                 ks  = np.array([x['K'] for x in valid_strikes], dtype=np.float64)
                 
                 idx_i, idx_j, cost, payout, ret, ann = evaluate_long_box(ca1, cb1, pa1, pb1, ks, float(dte), BOX_COMMISSION)
-                if idx_i >= 0 and ann > THRESHOLD:
-                    print(f"[{datetime.now(TZ).strftime('%H:%M:%S')}] Long Box Far [{prefix}]: DTE={dte} K1={ks[idx_i]} K2={ks[idx_j]} Cost={cost:.2f} Payout={payout:.2f} Ret={ret*100:.2f}% Ann={ann*100:.2f}%")
+                if idx_i >= 0:
+                    print(f"[{datetime.now(TZ).strftime('%H:%M:%S')}] LONG BOX FAR {prefix} DTE={dte} K1={ks[idx_i]} K2={ks[idx_j]} Cost={cost:.2f} Payout={payout:.2f} Ret={ret*100:.2f}% Ann={ann*100:.2f}%")
 
 def main():
     print("Initializing RQDatac...")
