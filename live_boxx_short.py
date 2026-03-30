@@ -208,8 +208,8 @@ def evaluator_loop():
                 ks  = np.array([x['K'] for x in valid_strikes], dtype=np.float64)
                 
                 idx_i, idx_j, credit, margin, ret, ann = evaluate_short_box(ca1, cb1, pa1, pb1, ks, float(dte), BOX_COMMISSION)
-                if idx_i >= 0:
-                    print(f"[{datetime.now(TZ).strftime('%H:%M:%S')}] SHORT BOX {prefix} DTE={dte} K1={ks[idx_i]} K2={ks[idx_j]} Credit={credit:.2f} Margin={margin:.2f} Ret={ret*100:.2f}% Ann={ann*100:.2f}%")
+                if idx_i > 0:
+                    print(f"[{datetime.now(TZ).strftime('%H:%M:%S')}] Short Box [{prefix}]: DTE={dte} K1={ks[idx_i]} K2={ks[idx_j]} Credit={credit:.2f} Margin={margin:.2f} Ret={ret*100:.2f}% Ann={ann*100:.2f}%")
 
 def main():
     print("Initializing RQDatac...")

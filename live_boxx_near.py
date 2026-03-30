@@ -208,8 +208,8 @@ def evaluator_loop():
                 ks  = np.array([x['K'] for x in valid_strikes], dtype=np.float64)
                 
                 idx_i, idx_j, cost, payout, ret, ann = evaluate_long_box(ca1, cb1, pa1, pb1, ks, float(dte), BOX_COMMISSION)
-                if idx_i >= 0:
-                    print(f"[{datetime.now(TZ).strftime('%H:%M:%S')}] LONG BOX NEAR {prefix} DTE={dte} K1={ks[idx_i]} K2={ks[idx_j]} Cost={cost:.2f} Payout={payout:.2f} Ret={ret*100:.2f}% Ann={ann*100:.2f}%")
+                if idx_i > 0:
+                    print(f"[{datetime.now(TZ).strftime('%H:%M:%S')}] Long Box Near [{prefix}]: DTE={dte} K1={ks[idx_i]} K2={ks[idx_j]} Cost={cost:.2f} Payout={payout:.2f} Ret={ret*100:.2f}% Ann={ann*100:.2f}%")
 
 def main():
     print("Initializing RQDatac...")
