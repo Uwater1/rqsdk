@@ -122,19 +122,23 @@ def process_synthetic_strikes_loop(strikes,
     return results
 
 @njit(cache=True)
-def calculate_research_metrics_numba(strikes, s0s, ret_val, prices, worthless, boundaries, is_short_call):
+def calculate_research_metrics_numba(strikes, s0s, ret_val, prices, worthless, boundaries, is_short_call, filter_mask):
     """
-    Numba-accelerated aggregation for OTM levels.
+    Numba-accelerated aggregation for OTM levels with filter support.
     is_short_call: True for Short Call, False for Long Put
+    filter_mask: Boolean array indicating if a group (date) passes the filter.
+    Returns: Two sets of metrics (passed, filtered)
     """
     num_groups = len(boundaries) - 1
-    # levels: 0, 1, 2, 3, 4, 5
     num_levels = 6
     
     # Results per level: [count, sum_pnl, sum_wins, sum_total_wins, min_pnl]
     # Indices: 0: count, 1: sum_pnl, 2: sum_wins, 3: sum_total_wins, 4: min_pnl
-    metrics = np.zeros((num_levels, 5))
-    metrics[:, 4] = 9999999.0 # Initialize min_pnl
+    metrics_passed = np.zeros((num_levels, 5))
+    metrics_passed[:, 4] = 9999999.0 # Initialize min_pnl
+    
+    metrics_filtered = np.zeros((num_levels, 5))
+    metrics_filtered[:, 4] = 9999999.0
     
     # Constants for RMB
     MULTIPLIER = 10000.0
@@ -147,15 +151,18 @@ def calculate_research_metrics_numba(strikes, s0s, ret_val, prices, worthless, b
         
         # s0 is same for all strikes in group
         s0 = s0s[start]
+        is_pass = filter_mask[g]
         
-        # Strikes are pre-sorted for this group
-        # Find ATM and OTM indices
-        # Level 0 (ATM): 
-        #   Call: strike <= s0 (closest) -> last index where strike <= s0
-        #   Put:  strike >= s0 (closest) -> first index where strike >= s0
-        # OTM Levels:
-        #   Call (Strike > s0): levels 1...5 are indices after ATM
-        #   Put (Strike < s0):  levels 1...5 are indices before ATM (reverse)
+        # Determine which metrics set to update
+        if is_pass:
+            metrics = metrics_passed
+        else:
+            # Filter only applies to Short Call cycles
+            if is_short_call:
+                metrics = metrics_filtered
+            else:
+                # Long Put always passes filter (as per research_otm_levels.py)
+                metrics = metrics_passed
         
         # Since group is sorted by Strike (ASC):
         if is_short_call:
@@ -245,4 +252,4 @@ def calculate_research_metrics_numba(strikes, s0s, ret_val, prices, worthless, b
                 if wth == 1: metrics[lv, 3] += 1
                 if pnl < metrics[lv, 4]: metrics[lv, 4] = pnl
                     
-    return metrics
+    return metrics_passed, metrics_filtered

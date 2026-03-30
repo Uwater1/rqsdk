@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import argparse
 import os
-import pandas_ta as ta
 from datetime import datetime, timedelta
 from numba_utils import calculate_research_metrics_numba
 
@@ -13,27 +12,23 @@ COMMISSION = 2.0  # Per contract
 # Global paths
 PATH_PARQUET = "synthetic_options_300ETF.parquet"
 ETF_NAME = "300ETF"
-PATH_ETF = "data/510300_1d.parquet"
 
 def select_etf(choice):
-    global ETF_NAME, PATH_PARQUET, PATH_ETF
+    global ETF_NAME, PATH_PARQUET
     if choice == "50":
         ETF_NAME = "50ETF"
         PATH_PARQUET = "synthetic_options_50ETF.parquet"
-        PATH_ETF = "data/50ETF_1d.parquet"
     elif choice == "500":
         ETF_NAME = "500ETF"
         PATH_PARQUET = "synthetic_options_500ETF.parquet"
-        PATH_ETF = "data/500ETF_1d.parquet"
     else:
         ETF_NAME = "300ETF"
         PATH_PARQUET = "synthetic_options_300ETF.parquet"
-        PATH_ETF = "data/510300_1d.parquet"
 
 def load_data():
     if not os.path.exists(PATH_PARQUET):
         print(f"Error: {PATH_PARQUET} not found.")
-        return None, None
+        return None
     
     df = pd.read_parquet(PATH_PARQUET)
     df["Date"] = pd.to_datetime(df["Date"])
@@ -47,28 +42,11 @@ def load_data():
     if 'Underlying Price at Date' not in df.columns and 'Underlying_Price' in df.columns:
         df['Underlying Price at Date'] = df['Underlying_Price']
         
-    # Load ETF data for filter
-    if not os.path.exists(PATH_ETF):
-        print(f"Error: {PATH_ETF} not found.")
-        return df, None
-        
-    etf = pd.read_parquet(PATH_ETF)
-    etf["date"] = pd.to_datetime(etf["date"])
-    etf = etf.set_index("date").sort_index()
-    
-    # Calculate indicators matching research_otm_levels.py
-    etf["rsi14"] = ta.rsi(etf["close"], length=14)
-    bb = ta.bbands(etf["close"], length=20, std=2)
-    if bb is not None:
-        etf["bbu20"] = bb["BBU_20_2.0_2.0"]
-    else:
-        etf["bbu20"] = np.nan
-        
-    return df, etf
+    return df
 
 def analyze_synthetic_otm(years=None):
     print(f"Analyzing {ETF_NAME} (Synthetic - Numba Accelerated)...")
-    df, etf = load_data()
+    df = load_data()
     if df is None:
         return
 
@@ -78,22 +56,11 @@ def analyze_synthetic_otm(years=None):
         df = df[df["Date"] >= start_date].copy()
         print(f"Filtering for data after: {start_date.date()}")
 
-    # Merge filter indicators
-    if etf is not None:
-        df = df.merge(etf[["rsi14", "bbu20"]], left_on="Date", right_index=True, how="left")
-        # Define filter: RSI < 66 AND Spot < Upper BB
-        df["Pass Filter"] = (df["rsi14"] < 66.0) & (df["Underlying Price at Date"] < df["bbu20"])
-        # Fill NAs with True to be safe (though shouldn't happen for most of the history)
-        df["Pass Filter"] = df["Pass Filter"].fillna(True)
-    else:
-        df["Pass Filter"] = True
-
     # Prepare for Numba
     # 1. Sort by Option Type, then Date, then Strike to ensure group continuity
     df = df.sort_values(['Option Type', 'Date', 'Strike']).reset_index(drop=True)
     
     results_data = []
-    filter_effectiveness_data = []
 
     for option_type in ["C", "P"]:
         mask = df["Option Type"] == option_type
@@ -108,11 +75,8 @@ def analyze_synthetic_otm(years=None):
         boundaries[1:-1] = diff
         boundaries[-1] = len(sub_df)
         
-        # Prepare filter mask per group (Date)
-        # We need one boolean per group
-        group_filter_mask = np.zeros(len(boundaries) - 1, dtype=bool)
-        for g in range(len(boundaries) - 1):
-            group_filter_mask[g] = sub_df["Pass Filter"].values[boundaries[g]]
+        # Prepare filter mask per group (Date) - No filter for this script
+        group_filter_mask = np.ones(len(boundaries) - 1, dtype=bool)
         
         # Prepare arrays for Numba
         strikes = sub_df["Strike"].values.astype(np.float64)
@@ -128,12 +92,11 @@ def analyze_synthetic_otm(years=None):
             is_call = False
             
         # Execute Numba core aggregation
-        # returns (metrics_passed, metrics_filtered)
+        # metrics_p: passed, metrics_f: filtered
         metrics_p, metrics_f = calculate_research_metrics_numba(
             strikes, s0s, ret_val, prices, worthless, boundaries, is_call, group_filter_mask
         )
         
-        # Process Passed Metrics
         for lv in range(6):
             count = metrics_p[lv, 0]
             if count == 0: continue
@@ -156,28 +119,6 @@ def analyze_synthetic_otm(years=None):
                 "Expected Return (RMB)": round(expected_return, 2),
                 "Max Loss (RMB)": round(min_pnl, 2)
             })
-
-        # Process Filtered Metrics (Short Call only)
-        if option_type == "C":
-            for lv in range(6):
-                count = metrics_f[lv, 0]
-                if count == 0: continue
-                
-                pnl_sum = metrics_f[lv, 1]
-                wins = metrics_f[lv, 2]
-                total_wins = metrics_f[lv, 3]
-                
-                winrate = wins / count
-                total_winrate = total_wins / count
-                expected_return = pnl_sum / count
-                
-                filter_effectiveness_data.append({
-                    "OTM Level": lv,
-                    "Samples": int(count),
-                    "Winrate": f"{winrate:.2%}",
-                    "Expire Worthless Rate": f"{total_winrate:.2%}",
-                    "Expected Return (RMB)": round(expected_return, 2)
-                })
             
     if not results_data:
         print("No valid data found for analysis.")
@@ -194,15 +135,6 @@ def analyze_synthetic_otm(years=None):
     print("="*95)
     print(df_res.to_string(index=False))
     print("="*95)
-    
-    if filter_effectiveness_data:
-        f_df = pd.DataFrame(filter_effectiveness_data)
-        f_title = "FILTER EFFECTIVENESS (FILTERED OUT SHORT CALL SAMPLES)"
-        print("\n" + "="*95)
-        print(" " * ((95 - len(f_title)) // 2) + f_title)
-        print("="*95)
-        print(f_df.to_string(index=False))
-        print("="*95)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Research Synthetic OTM Alpha (Short Call & Long Put).")
