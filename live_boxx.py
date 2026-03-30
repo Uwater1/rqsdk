@@ -9,7 +9,7 @@ from rqdatac import LiveMarketDataClient
 # ── constants ────────────────────────────────────────────────────────────────
 COMMISSION_PER_LEG = 0.2
 BOX_COMMISSION = 4 * COMMISSION_PER_LEG
-EVAL_INTERVAL = 2.0  # seconds
+EVAL_INTERVAL = 1.0  # seconds
 
 # ── globals ──────────────────────────────────────────────────────────────────
 # tick_data dict: order_book_id -> { 'a1': float, 'b1': float, 'time': datetime }

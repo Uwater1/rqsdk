@@ -14,6 +14,7 @@ COMMISSION_PER_LEG = 0.2
 BOX_COMMISSION = 4 * COMMISSION_PER_LEG
 EVAL_INTERVAL = 2.0  # seconds
 TZ = pytz.timezone('Asia/Shanghai')
+MAX_STALE = timedelta(seconds=2)
 
 # ── globals ──────────────────────────────────────────────────────────────────
 tick_data = {}
@@ -80,8 +81,11 @@ def init_options_map():
         _, expiry, _, _ = parse_ticker(oid)
         expiries.add(expiry)
         
-    all_dtes = sorted(list(set([(e - today).days for e in expiries])))
-    min_dte = all_dtes[0] if all_dtes else 0
+    all_dtes = sorted(list(set([(e - today).days for e in expiries if (e - today).days > 0])))
+    min_dte = all_dtes[0] if all_dtes else None
+    if min_dte is None:
+        print("No valid near-term options found.")
+        sys.exit(0)
     
     target_oids = []
     
@@ -122,13 +126,15 @@ def handle_msg(msg):
             bids = getattr(msg, 'bid', [])
             
         if oid and asks and bids:
-            a1 = asks[0] if len(asks) > 0 else 0.0
-            b1 = bids[0] if len(bids) > 0 else 0.0
+            raw_a1 = asks[0] if len(asks) > 0 else 0.0
+            raw_b1 = bids[0] if len(bids) > 0 else 0.0
+            a1 = float(raw_a1[0]) if isinstance(raw_a1, (list, tuple)) else float(raw_a1)
+            b1 = float(raw_b1[0]) if isinstance(raw_b1, (list, tuple)) else float(raw_b1)
             
             with data_lock:
                 if oid in tick_data:
-                    tick_data[oid]['a1'] = float(a1)
-                    tick_data[oid]['b1'] = float(b1)
+                    tick_data[oid]['a1'] = a1
+                    tick_data[oid]['b1'] = b1
                     tick_data[oid]['time'] = datetime.now(TZ)
     except Exception as e:
         print(f"[handle_msg error] {e}", file=sys.stderr)
@@ -155,9 +161,15 @@ def evaluator_loop():
                         p_data = snapshot.get(p_oid)
                         
                         if c_data and p_data:
+                            now = datetime.now(TZ)
+                            if c_data['time'] is None or (now - c_data['time']) > MAX_STALE:
+                                continue
+                            if p_data['time'] is None or (now - p_data['time']) > MAX_STALE:
+                                continue
+
                             ca1, cb1 = c_data['a1'], c_data['b1']
                             pa1, pb1 = p_data['a1'], p_data['b1']
-                            if ca1 > 0 and cb1 > 0 and pa1 > 0 and pb1 > 0:
+                            if (ca1 > 0 or cb1 > 0) and (pa1 > 0 or pb1 > 0):
                                 valid_strikes.append({
                                     'K': K,
                                     'ca1': ca1, 'cb1': cb1,
