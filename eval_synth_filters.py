@@ -124,7 +124,7 @@ for f_name, f_mask in filters.items():
     results.append({
         "Filter": f_name,
         "Placement Rate": placement_rate,
-        "Max Loss": min_ml if min_ml != 9999999 else 0,
+        "Max Loss": min_ml if min_ml != np.inf else np.nan,
         "Avg ER (Passed)": avg_er_passed,
         "Avg ER (Filtered)": avg_er_filtered
     })
