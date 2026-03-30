@@ -81,8 +81,8 @@ def analyze_synthetic_otm(years=None):
     # Merge filter indicators
     if etf is not None:
         df = df.merge(etf[["rsi14", "bbu20"]], left_on="Date", right_index=True, how="left")
-        # Define filter: RSI < 66 AND Spot < Upper BB
-        df["Pass Filter"] = (df["rsi14"] < 66.0) & (df["Underlying Price at Date"] < df["bbu20"])
+        # Define filter: RSI < 70 AND RSI > 30 AND Spot < Upper BB
+        df["Pass Filter"] = (df["rsi14"] < 70.0) & (df["rsi14"] > 30.0) & (df["Underlying Price at Date"] < df["bbu20"])
         # Fill NAs with True to be safe (though shouldn't happen for most of the history)
         df["Pass Filter"] = df["Pass Filter"].fillna(True)
     else:
