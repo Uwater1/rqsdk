@@ -12,7 +12,7 @@ from rqdatac import LiveMarketDataClient
 # ── constants ────────────────────────────────────────────────────────────────
 COMMISSION_PER_LEG = 0.2
 BOX_COMMISSION = 4 * COMMISSION_PER_LEG
-EVAL_INTERVAL = 2.0  # seconds
+EVAL_INTERVAL = 1.0  # seconds
 TZ = pytz.timezone('Asia/Shanghai')
 MAX_STALE = timedelta(seconds=2)
 
@@ -189,7 +189,7 @@ def evaluator_loop():
                 
                 idx_i, idx_j, cost, payout, ret, ann = evaluate_long_box(ca1, cb1, pa1, pb1, ks, float(dte), BOX_COMMISSION)
                 if idx_i >= 0:
-                    print(f"[{datetime.now(TZ).strftime('%H:%M:%S')}] LONG BOX NEAR {prefix} DTE={dte} K1={ks[idx_i]} K2={ks[idx_j]} Cost={cost:.2f} Payout={payout:.2f} Ret={ret*100:.2f}% Ann={ann*100:.2f}%")
+                    print(f"[{datetime.now(TZ).strftime('%H:%M:%S')}] Long Box Near [{prefix}]: DTE={dte} K1={ks[idx_i]} K2={ks[idx_j]} Cost={cost:.2f} Payout={payout:.2f} Ret={ret*100:.2f}% Ann={ann*100:.2f}%")
 
 def main():
     print("Initializing RQDatac...")
