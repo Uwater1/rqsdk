@@ -15,7 +15,7 @@ MULTIPLIER = 100       # IO options multiplier is 100 RMB per point
 # Margin and Sizing Constants
 MARGIN_RATE = 0.125
 CAPITAL_PER_SET = 10000 * 100 
-SL_MULTIPLIER = 2.0
+SL_MULTIPLIER = 5.0
 MAX_NET_DELTA = 0.1
 MAX_ABS_SPREAD = 2.0
 
