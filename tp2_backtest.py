@@ -8,16 +8,22 @@ import itertools
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
+from scipy.stats import norm
+from numba import njit, float64, int64, boolean
+import math
+
 DEFAULT_CARRY = -0.01  # -1 % annual continuously-compounded
 COMMISSION = 1.0       # Per contract, per leg
 MULTIPLIER = 100       # IO options multiplier is 100 RMB per point
 
 # Margin and Sizing Constants
-MARGIN_RATE = 0.125
+MARGIN_RATE = 0.15
 CAPITAL_PER_SET = 10000 * 100 
-SL_MULTIPLIER = 5.0
+SL_MULTIPLIER = 5.0    # More realistic Stop Loss
 MAX_NET_DELTA = 0.1
 MAX_ABS_SPREAD = 2.0
+MIN_SCORE = 0.005     
+TAKE_PROFIT_POINTS = 2.0
 
 def get_third_friday(year, month):
     """Calculate the third Friday of a given month and year."""
@@ -91,10 +97,6 @@ def load_and_align_data(data_dir, underlying='IO'):
     
     return resampled_df
 
-from scipy.stats import norm
-from numba import njit, float64, int64, boolean
-import math
-
 @njit(cache=True)
 def _numba_cdf(x):
     """Fast Numba-compatible CDF approximation."""
@@ -154,7 +156,7 @@ def calculate_greeks_numba(S, K, T, r, sigma, is_call):
 def find_tp2_signals_numba(
     strikes, dtes, asks, bids, deltas, 
     carry, min_score, commission_cost, multiplier,
-    max_qty=10, max_net_delta=0.10
+    max_qty=10, max_net_delta=0.10, is_call=True
 ):
     """
     Numba-accelerated TP2 quadruplet search and Delta-neutral solver.
@@ -173,67 +175,65 @@ def find_tp2_signals_numba(
             
             for k1_idx in range(num_k):
                 for k2_idx in range(k1_idx + 1, num_k):
-                    # Check if all prices exist
-                    a11 = asks[k1_idx, t1_idx]
-                    a22 = asks[k2_idx, t2_idx]
-                    b12 = bids[k1_idx, t2_idx]
-                    b21 = bids[k2_idx, t1_idx]
+                    # Fetch all 8 prices for the 4 legs
+                    a11, b11 = asks[k1_idx, t1_idx], bids[k1_idx, t1_idx]
+                    a12, b12 = asks[k1_idx, t2_idx], bids[k1_idx, t2_idx]
+                    a21, b21 = asks[k2_idx, t1_idx], bids[k2_idx, t1_idx]
+                    a22, b22 = asks[k2_idx, t2_idx], bids[k2_idx, t2_idx]
                     
-                    if math.isnan(a11) or math.isnan(a22) or math.isnan(b12) or math.isnan(b21):
-                        continue
+                    if math.isnan(a11) or math.isnan(a22) or math.isnan(a12) or math.isnan(a21): continue
+                    if math.isnan(b11) or math.isnan(b22) or math.isnan(b12) or math.isnan(b21): continue
                     
-                    # TP2 Shape Check (Multiplicative)
-                    cost_adj = (a11 * df1) * (a22 * df2)
-                    rev_adj = (b12 * df2) * (b21 * df1)
+                    # TP2 Multiplicative Violation Check
+                    if is_call:
+                        # Expected: C11*C22 >= C12*C21
+                        cost_adj = a11 * a22
+                        rev_adj = b12 * b21
+                    else:
+                        # Expected: P12*P21 >= P11*P22
+                        cost_adj = a12 * a21
+                        rev_adj = b11 * b22
                     
                     if cost_adj > 0 and (rev_adj - cost_adj) / cost_adj > min_score:
-                        # PHASE 2: Delta Neutral Solver
-                        d11 = deltas[k1_idx, t1_idx]
-                        d22 = deltas[k2_idx, t2_idx]
-                        d12 = deltas[k1_idx, t2_idx]
-                        d21 = deltas[k2_idx, t1_idx]
+                        d11, d12, d21, d22 = deltas[k1_idx, t1_idx], deltas[k1_idx, t2_idx], deltas[k2_idx, t1_idx], deltas[k2_idx, t2_idx]
                         
+                        best_cashflow = -999.0
                         best_delta = 999.0
                         best_q = (1, 1, 1, 1)
-                        best_cashflow = -999.0
                         
-                        for q11 in range(1, max_qty + 1):
-                            for q22 in range(1, max_qty + 1):
-                                for q12 in range(1, max_qty + 1):
-                                    for q21 in range(1, max_qty + 1):
-                                        net_d = q11*d11 + q22*d22 - q12*d12 - q21*d21
-                                        if abs(net_d) <= max_net_delta:
-                                            cashflow = q12*b12 + q21*b21 - q11*a11 - q22*a22
-                                            total_legs = q11 + q22 + q12 + q21
-                                            comms_pts = (total_legs * 2 * commission_cost) / multiplier
-                                            cashflow_after_comm = cashflow - comms_pts
+                        for q_buy1 in range(1, max_qty + 1):
+                            for q_buy2 in range(1, max_qty + 1):
+                                for q_sell1 in range(1, max_qty + 1):
+                                    for q_sell2 in range(1, max_qty + 1):
+                                        if is_call: # Buy (11, 22), Sell (12, 21)
+                                            net_d = q_buy1*d11 + q_buy2*d22 - q_sell1*d12 - q_sell2*d21
+                                            cashflow = q_sell1*b12 + q_sell2*b21 - q_buy1*a11 - q_buy2*a22
+                                        else: # Buy (12, 21), Sell (11, 22)
+                                            net_d = q_buy1*d12 + q_buy2*d21 - q_sell1*d11 - q_sell2*d22
+                                            cashflow = q_sell1*b11 + q_sell2*b22 - q_buy1*a12 - q_buy2*a21
                                             
-                                            if cashflow_after_comm > 0.1:
-                                                metric = cashflow_after_comm / total_legs
-                                                if metric > best_cashflow or (metric == best_cashflow and abs(net_d) < abs(best_delta)):
-                                                    best_cashflow = metric
-                                                    best_delta = net_d
-                                                    best_q = (q11, q22, q12, q21)
+                                        if abs(net_d) <= max_net_delta:
+                                            total_legs = q_buy1 + q_buy2 + q_sell1 + q_sell2
+                                            comms_pts = (total_legs * 2 * commission_cost) / multiplier
+                                            cf_net = cashflow - comms_pts
+                                            
+                                            if cf_net > 0.1:
+                                                metric = cf_net / total_legs
+                                                if metric > best_cashflow:
+                                                    best_cashflow, best_delta, best_q = metric, net_d, (q_buy1, q_buy2, q_sell1, q_sell2)
                         
-                        if best_cashflow > 0.0:
-                            if count < 100:
-                                q11, q22, q12, q21 = best_q
-                                cashflow = q12*b12 + q21*b21 - q11*a11 - q22*a22
-                                results[count, 0] = k1_idx
-                                results[count, 1] = k2_idx
-                                results[count, 2] = t1_idx
-                                results[count, 3] = t2_idx
-                                results[count, 4] = q11
-                                results[count, 5] = q22
-                                results[count, 6] = q12
-                                results[count, 7] = q21
-                                results[count, 8] = best_delta
-                                results[count, 9] = cashflow
-                                count += 1
-                                
+                        if best_cashflow > 0.0 and count < 100:
+                            results[count, 0] = k1_idx
+                            results[count, 1] = k2_idx
+                            results[count, 2] = t1_idx
+                            results[count, 3] = t2_idx
+                            results[count, 4:8] = np.array(best_q)
+                            results[count, 8] = best_delta
+                            results[count, 9] = best_cashflow # This becomes base_cashflow in points
+                            count += 1
     return results[:count]
 
-def run_backtest(data_dirs, underlying='IO', carry=DEFAULT_CARRY, take_profit_points=5.0, min_score=0.1, max_spread_pct=0.2):
+def run_backtest(data_dirs, underlying='IO', carry=DEFAULT_CARRY, take_profit_points=TAKE_PROFIT_POINTS, min_score=MIN_SCORE, max_spread_pct=0.2):
     """
     Run the backtest over multiple data directories to allow longer holding.
     """
@@ -251,7 +251,8 @@ def run_backtest(data_dirs, underlying='IO', carry=DEFAULT_CARRY, take_profit_po
         return
         
     df = pd.concat(all_dfs).sort_index()
-    df = df.resample('1min').ffill().dropna(how='all')
+    # Limit ffill to prevent stale weekend/afternoon data from bleeding into the next morning
+    df = df.resample('1min').ffill(limit=10).dropna(how='all')
     
     tickers = set()
     for col in df.columns:
@@ -281,25 +282,27 @@ def run_backtest(data_dirs, underlying='IO', carry=DEFAULT_CARRY, take_profit_po
         return mtm
 
     for current_time, row in df.iterrows():
+        # 0. Skip non-trading hours for both management and entry (CFFEX: 09:30-11:30, 13:00-15:00)
+        h, m = current_time.hour, current_time.minute
+        if h < 9 or (h == 9 and m < 30) or (h == 11 and m > 30) or h == 12 or (h == 14 and m >= 55) or h >= 15:
+            continue
+
         # 1. Management
         for pos in positions[:]:
             val = get_mtm(pos, row)
+            if pd.isna(val): continue
             
-            # Check for expiry limits
+            pnl = val + pos['initial_cashflow']
             min_dte_days = min((ticker_info[leg['ticker']]['expiry_date'].date() - current_time.date()).days for leg in pos['legs'])
             
-            if not pd.isna(val):
-                pnl = val + pos['initial_cashflow']
-                
-                # Check bounds
-                if pnl > take_profit_points or pnl < -stop_loss_points or min_dte_days <= 1:
-                    pos.update({'close_time': current_time, 'pnl': pnl, 'net_pnl': pnl*MULTIPLIER - pos['total_qty']*2*COMMISSION})
-                    closed_trades.append(pos)
-                    positions.remove(pos)
+            # Check bounds relative to total leg quantities to avoid quantity skew
+            norm_pnl = pnl / pos['total_qty']
+            if norm_pnl > take_profit_points or norm_pnl < -stop_loss_points or min_dte_days <= 1:
+                # Commissions were already processed into 'initial_cashflow' via cf_net in Numba
+                pos.update({'close_time': current_time, 'pnl': pnl, 'net_pnl': pnl * MULTIPLIER})
+                closed_trades.append(pos)
+                positions.remove(pos)
 
-        if current_time.hour < 9 or (current_time.hour == 14 and current_time.minute > 30) or current_time.hour > 14:
-            continue
-            
         fwd_prices = {}
         for dte in set((ticker_info[t]['expiry_date'].date() - current_time.date()).days for t in tickers if (ticker_info[t]['expiry_date'].date() - current_time.date()).days > 0):
             tkrs = [t for t in tickers if (ticker_info[t]['expiry_date'].date() - current_time.date()).days == dte]
@@ -351,53 +354,63 @@ def run_backtest(data_dirs, underlying='IO', carry=DEFAULT_CARRY, take_profit_po
             signals = find_tp2_signals_numba(
                 strikes, dtes, asks_m, bids_m, deltas_m, 
                 carry, min_score, COMMISSION, MULTIPLIER,
-                max_qty=10, max_net_delta=MAX_NET_DELTA
+                max_qty=10, max_net_delta=MAX_NET_DELTA,
+                is_call=(otype == 'C')
             )
             
             if len(signals) > 0:
-                # Rank: Highest Cashflow per Unit Quality first
-                total_qs = signals[:, 4] + signals[:, 5] + signals[:, 6] + signals[:, 7]
-                cf_per_contract = signals[:, 9] / total_qs
-                signals = signals[cf_per_contract.argsort()[::-1]]
+                # Rank: Highest Net Cashflow per Contract first
+                signals = signals[signals[:, 9].argsort()[::-1]]
                 
                 for s in signals:
                     k1i, k2i, t1i, t2i = int(s[0]), int(s[1]), int(s[2]), int(s[3])
                     q_base = s[4:8]
-                    base_cashflow = s[9]
+                    base_cf_net = s[9]
                     
-                    sig_key = frozenset([tick_m[k1i,t1i], tick_m[k2i,t2i], tick_m[k1i,t2i], tick_m[k2i,t1i]])
+                    if otype == 'C':
+                        sig_tickers = [tick_m[k1i,t1i], tick_m[k2i,t2i], tick_m[k1i,t2i], tick_m[k2i,t1i]]
+                    else: # Puts mapping: Buy (12, 21), Sell (11, 22)
+                        sig_tickers = [tick_m[k1i,t2i], tick_m[k2i,t1i], tick_m[k1i,t1i], tick_m[k2i,t2i]]
+                        
+                    sig_key = frozenset(sig_tickers)
                     if sig_key in active_keys: continue
                     
                     # Kelly Scaled Sizing (targeting ~ CAPITAL_PER_SET margin)
-                    strike1 = strikes[k1i]
-                    strike2 = strikes[k2i]
-                    # Margin required per single base set for the short legs
-                    margin_per_base_qty = (strike1 * q_base[2] + strike2 * q_base[3]) * MULTIPLIER * MARGIN_RATE
+                    # For IO, short margin is roughly ~ Strike * 0.15 * 100
+                    # Shorts are q_base[2] and q_base[3] (sell1 and sell2)
+                    ticker_s1, ticker_s2 = sig_tickers[2], sig_tickers[3]
+                    margin_per_base_qty = (ticker_info[ticker_s1]['strike'] * q_base[2] + ticker_info[ticker_s2]['strike'] * q_base[3]) * MULTIPLIER * MARGIN_RATE
                     
-                    kelly_scale = min(1.0, max(0.05, (base_cashflow * MULTIPLIER) / (0.02 * CAPITAL_PER_SET)))
+                    kelly_scale = min(1.0, max(0.05, (base_cf_net * MULTIPLIER) / (0.005 * CAPITAL_PER_SET)))
                     target_margin = CAPITAL_PER_SET * kelly_scale
-                    
                     final_multiplier = max(1, int(target_margin / margin_per_base_qty))
                     
                     q = q_base * final_multiplier
-                    actual_cashflow = base_cashflow * final_multiplier
                     total_qty = np.sum(q)
+                    # base_cf_net is points per leg, so multiply by total_qty to get total position cashflow
+                    actual_cf_points = base_cf_net * total_qty
+                    
+                    # Construct Legs
+                    pos_legs = []
+                    # First two are BUYS
+                    for i in range(2):
+                        tkr = sig_tickers[i]
+                        pos_legs.append({'ticker': tkr, 'side': 1, 'qty': q[i], 'entry_price': row[f"{tkr}_ask"]})
+                    # Next two are SELLS
+                    for i in range(2, 4):
+                        tkr = sig_tickers[i]
+                        pos_legs.append({'ticker': tkr, 'side': -1, 'qty': q[i], 'entry_price': row[f"{tkr}_bid"]})
                     
                     positions.append({
-                        'open_time': current_time, 'type': otype, 'initial_cashflow': actual_cashflow,
+                        'open_time': current_time, 'type': otype, 'initial_cashflow': actual_cf_points, # Points
                         'total_qty': total_qty, 
                         'commission': total_qty * 2 * COMMISSION, 
                         'pnl': 0.0, 'net_pnl': 0.0,
                         'sig_key': sig_key,
-                        'legs': [
-                            {'ticker': tick_m[k1i,t1i], 'side': 1, 'qty': q[0], 'entry_price': row[f"{tick_m[k1i,t1i]}_ask"]},
-                            {'ticker': tick_m[k2i,t2i], 'side': 1, 'qty': q[1], 'entry_price': row[f"{tick_m[k2i,t2i]}_ask"]},
-                            {'ticker': tick_m[k1i,t2i], 'side': -1, 'qty': q[2], 'entry_price': row[f"{tick_m[k1i,t2i]}_bid"]},
-                            {'ticker': tick_m[k2i,t1i], 'side': -1, 'qty': q[3], 'entry_price': row[f"{tick_m[k2i,t1i]}_bid"]}
-                        ]
+                        'legs': pos_legs
                     })
                     active_keys.add(sig_key)
-                    break # Limit 1 pos per option surface to mitigate concentration
+                    break 
 
             
     # Reporting
@@ -441,8 +454,8 @@ def run_backtest(data_dirs, underlying='IO', carry=DEFAULT_CARRY, take_profit_po
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="TP2 Backtest")
     parser.add_argument('data_dirs', type=str, nargs='+', help='Directories containing the tick data (e.g. data-deep/2026-03-24 data-deep/2026-03-25)')
-    parser.add_argument('--take-profit', type=float, default=5.0, help='Take profit in points (default: 5.0)')
-    parser.add_argument('--min-score', type=float, default=0.1, help='Minimum TP2 violation rate (default: 0.1)')
+    parser.add_argument('--take-profit', type=float, default=2.0, help='Take profit in points (default: 2.0)')
+    parser.add_argument('--min-score', type=float, default=0.005, help='Minimum TP2 violation rate (default: 0.005)')
     parser.add_argument('--max-spread', type=float, default=0.2, help='Maximum relative spread pct (default: 0.2)')
     args = parser.parse_args()
     
