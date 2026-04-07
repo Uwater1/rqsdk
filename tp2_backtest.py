@@ -185,14 +185,9 @@ def find_tp2_signals_numba(
                     if math.isnan(b11) or math.isnan(b22) or math.isnan(b12) or math.isnan(b21): continue
                     
                     # TP2 Multiplicative Violation Check
-                    if is_call:
-                        # Expected: C11*C22 >= C12*C21
-                        cost_adj = a11 * a22
-                        rev_adj = b12 * b21
-                    else:
-                        # Expected: P12*P21 >= P11*P22
-                        cost_adj = a12 * a21
-                        rev_adj = b11 * b22
+                    # Expected: V11*V22 >= V12*V21 for both Calls and Puts
+                    cost_adj = a11 * a22
+                    rev_adj = b12 * b21
                     
                     if cost_adj > 0 and (rev_adj - cost_adj) / cost_adj > min_score:
                         d11, d12, d21, d22 = deltas[k1_idx, t1_idx], deltas[k1_idx, t2_idx], deltas[k2_idx, t1_idx], deltas[k2_idx, t2_idx]
@@ -205,12 +200,9 @@ def find_tp2_signals_numba(
                             for q_buy2 in range(1, max_qty + 1):
                                 for q_sell1 in range(1, max_qty + 1):
                                     for q_sell2 in range(1, max_qty + 1):
-                                        if is_call: # Buy (11, 22), Sell (12, 21)
-                                            net_d = q_buy1*d11 + q_buy2*d22 - q_sell1*d12 - q_sell2*d21
-                                            cashflow = q_sell1*b12 + q_sell2*b21 - q_buy1*a11 - q_buy2*a22
-                                        else: # Buy (12, 21), Sell (11, 22)
-                                            net_d = q_buy1*d12 + q_buy2*d21 - q_sell1*d11 - q_sell2*d22
-                                            cashflow = q_sell1*b11 + q_sell2*b22 - q_buy1*a12 - q_buy2*a21
+                                        # Buy (11, 22), Sell (12, 21) for both Calls and Puts
+                                        net_d = q_buy1*d11 + q_buy2*d22 - q_sell1*d12 - q_sell2*d21
+                                        cashflow = q_sell1*b12 + q_sell2*b21 - q_buy1*a11 - q_buy2*a22
                                             
                                         if abs(net_d) <= max_net_delta:
                                             total_legs = q_buy1 + q_buy2 + q_sell1 + q_sell2
@@ -367,10 +359,8 @@ def run_backtest(data_dirs, underlying='IO', carry=DEFAULT_CARRY, take_profit_po
                     q_base = s[4:8]
                     base_cf_net = s[9]
                     
-                    if otype == 'C':
-                        sig_tickers = [tick_m[k1i,t1i], tick_m[k2i,t2i], tick_m[k1i,t2i], tick_m[k2i,t1i]]
-                    else: # Puts mapping: Buy (12, 21), Sell (11, 22)
-                        sig_tickers = [tick_m[k1i,t2i], tick_m[k2i,t1i], tick_m[k1i,t1i], tick_m[k2i,t2i]]
+                    # For both calls and puts: Buy (11, 22), Sell (12, 21)
+                    sig_tickers = [tick_m[k1i,t1i], tick_m[k2i,t2i], tick_m[k1i,t2i], tick_m[k2i,t1i]]
                         
                     sig_key = frozenset(sig_tickers)
                     if sig_key in active_keys: continue

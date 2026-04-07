@@ -59,13 +59,29 @@ def run_download(target_date, target_ticker):
     for und in underlying_symbols:
         try:
             contracts = rqdatac.options.get_contracts(underlying=und, trading_date=date_str)
-            print(f"Found {len(contracts)} contracts for {und} on {date_str}")
             
-            for contract in contracts:
+            # Group contracts by maturity date and only keep the first 4 maturities
+            maturity_groups = {}
+            for c in contracts:
+                m_date = rqdatac.instruments(c).maturity_date
+                if m_date not in maturity_groups:
+                    maturity_groups[m_date] = []
+                maturity_groups[m_date].append(c)
+            
+            sorted_maturities = sorted(maturity_groups.keys())[:4]
+            print(f"Downloading first 4 maturities for {und} on {date_str}: {sorted_maturities}")
+            
+            contracts_to_download = []
+            for m in sorted_maturities:
+                contracts_to_download.extend(maturity_groups[m])
+
+            print(f"Found {len(contracts_to_download)} contracts for {und} on {date_str} across 4 maturities")
+            
+            for contract in contracts_to_download:
                 res = download_tick_data(contract, date_str, und)
                 print(res)
                 total_count += 1
-                time.sleep(0.05) 
+                time.sleep(0.01) 
         except Exception as e:
             print(f"Error fetching contracts for {und} on {date_str}: {e}")
 
