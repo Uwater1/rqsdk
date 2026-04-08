@@ -68,7 +68,7 @@ def main():
     parser = argparse.ArgumentParser(description="Find TP2 Arbitrage Violations")
     parser.add_argument('--date-dir', type=str, required=True, help='Directory of the date, e.g., data-deep/2026-03-24')
     parser.add_argument('--symbol', type=str, required=True, help='Underlying symbol, e.g., IO')
-    parser.add_argument('--min-score', type=float, default=0.00, help='Minimum score in price units (default: 0.00)')
+    parser.add_argument('--min-score', type=float, default=0.01, help='Minimum score in price units (default: 0.01)')
     parser.add_argument('--net-carry', type=float, default=-0.01,
                         help='Net carry rate r-q annualised (default: -0.01, i.e. -1%% as observed for IO futures options)')
     args = parser.parse_args()
@@ -171,10 +171,22 @@ def main():
                             dt       = (t2 - t1) / 365.0
                             discount = math.exp(-args.net_carry * dt)
 
-                            # Buy (T1,K1) and (T2,K2); Sell (T2,K1) and (T1,K2)
+                            # Carry-adjusted mid prices
+                            mid11 = (c11['a'] + c11['b']) / 2.0
+                            mid12 = ((c12['a'] + c12['b']) / 2.0) * discount
+                            mid21 = (c21['a'] + c21['b']) / 2.0
+                            mid22 = ((c22['a'] + c22['b']) / 2.0) * discount
+
+                            if mid11 <= 0 or mid12 <= 0 or mid21 <= 0 or mid22 <= 0:
+                                continue
+
+                            # Score: carry-adjusted log TP2 determinant
+                            ratio = (mid11 * mid22) / (mid21 * mid12)
+                            score = -math.log(ratio)
+
+                            # Keep cost and rev for logging/reference
                             cost  = c11['a'] + c22['a'] * discount
                             rev   = c12['b'] * discount + c21['b']
-                            score = rev - cost  # net P&L in PV-adjusted price units
 
                             if score > args.min_score:
                                 violations.append({
@@ -218,10 +230,22 @@ def main():
                             dt       = (t2 - t1) / 365.0
                             discount = math.exp(-args.net_carry * dt)
 
-                            # Buy (T1,K1) and (T2,K2); Sell (T2,K1) and (T1,K2)
+                            # Carry-adjusted mid prices
+                            mid11 = (p11['a'] + p11['b']) / 2.0
+                            mid12 = ((p12['a'] + p12['b']) / 2.0) * discount
+                            mid21 = (p21['a'] + p21['b']) / 2.0
+                            mid22 = ((p22['a'] + p22['b']) / 2.0) * discount
+
+                            if mid11 <= 0 or mid12 <= 0 or mid21 <= 0 or mid22 <= 0:
+                                continue
+
+                            # Score: carry-adjusted log TP2 determinant
+                            ratio = (mid11 * mid22) / (mid21 * mid12)
+                            score = -math.log(ratio)
+
+                            # Keep cost and rev for logging/reference
                             cost  = p11['a'] + p22['a'] * discount
                             rev   = p12['b'] * discount + p21['b']
-                            score = rev - cost  # net P&L in PV-adjusted price units
 
                             if score > args.min_score:
                                 violations.append({
