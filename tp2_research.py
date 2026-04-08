@@ -60,7 +60,7 @@ def load_and_align_data(data_dir, underlying='IO'):
         return pd.DataFrame()
         
     merged_df = pd.concat(all_series, axis=1)
-    resampled_df = merged_df.resample('1min').ffill(limit=10).dropna(how='all')
+    resampled_df = merged_df.resample('1min').ffill(limit=2).dropna(how='all')
     
     return resampled_df
 
