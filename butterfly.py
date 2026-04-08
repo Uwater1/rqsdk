@@ -86,9 +86,17 @@ def scan_butterfly(df, min_profit=0.1):
                         # Convexity weight: k2 = w*k1 + (1-w)*k3
                         w = (k3 - k2) / (k3 - k1)
                         
-                        # Butterfly Arb: Sell K2 (Bid), Buy w*K1 (Ask) and (1-w)*K3 (Ask)
+                        # Butterfly Arb (Worst Case Logic):
+                        # 1. Sell K2 (at min of bid/ask)
+                        # 2. Buy w*K1 (at max of bid/ask)
+                        # 3. Buy (1-w)*K3 (at max of bid/ask)
+                        
+                        sell_k2 = min(o2['b'], o2['a'])
+                        buy_k1 = max(o1['b'], o1['a'])
+                        buy_k3 = max(o3['b'], o3['a'])
+                        
                         # Upfront credit (min profit)
-                        min_p = o2['b'] - (w * o1['a'] + (1 - w) * o3['a'])
+                        min_p = sell_k2 - (w * buy_k1 + (1 - w) * buy_k3)
                         
                         if min_p > min_profit:
                             # Peak intrinsic value at K2
