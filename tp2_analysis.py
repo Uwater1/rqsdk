@@ -195,7 +195,7 @@ def run_persistence_for_day(viol_df, price_df, net_carry):
 # MODULE 2 — PROFITABILITY
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def run_profitability_for_day(viol_df, price_df, persist_df, net_carry):
+def run_profitability_for_day(viol_df, price_df, persist_df, net_carry, next_price_df=None):
     if persist_df.empty: return pd.DataFrame()
     persist_indexed = persist_df.set_index('time')
     
@@ -203,6 +203,16 @@ def run_profitability_for_day(viol_df, price_df, persist_df, net_carry):
     columns = price_df.columns.tolist()
     col_idx = {col: i for i, col in enumerate(columns)}
     price_mat = price_df.values
+    
+    if next_price_df is not None and not next_price_df.empty:
+        next_timestamps = next_price_df.index
+        next_columns = next_price_df.columns.tolist()
+        next_col_idx = {col: i for i, col in enumerate(next_columns)}
+        next_price_mat = next_price_df.values
+    else:
+        next_timestamps = None
+        next_col_idx = {}
+        next_price_mat = None
 
     records = []
     
@@ -251,6 +261,15 @@ def run_profitability_for_day(viol_df, price_df, persist_df, net_carry):
             if any(math.isnan(v) or v<=0 for v in [b11,b22,a12,a21]): return np.nan
             return (b11 + b22) - (a12 + a21)
 
+        def get_exit_score(exit_ts):
+            idx = timestamps.get_indexer([exit_ts], method='pad')[0]
+            if idx == -1: return np.nan
+            a11, b11 = price_mat[idx, c_a11], price_mat[idx, c_b11]
+            a22, b22 = price_mat[idx, c_a22], price_mat[idx, c_b22]
+            a12, b12 = price_mat[idx, c_a12], price_mat[idx, c_b12]
+            a21, b21 = price_mat[idx, c_a21], price_mat[idx, c_b21]
+            return fast_compute_score(a11, b11, a22, b22, a12, b12, a21, b21, discount)
+
         results = {'entry_pnl_pts': entry_pnl}
         
         ttl = pr.get('ttl_min', np.nan)
@@ -274,6 +293,51 @@ def run_profitability_for_day(viol_df, price_df, persist_df, net_carry):
             if pd.notna(ep):
                 results[f'exit_{m}min_gross_pts'] = entry_pnl + ep
                 results[f'exit_{m}min_net_rmb'] = (entry_pnl + ep - commission_pts) * MULTIPLIER
+            
+            es = get_exit_score(ts_exit)
+            if pd.notna(es):
+                results[f'score_{m}min'] = es
+
+        results['exit_next_day_gross_pts'] = np.nan
+        results['exit_next_day_net_rmb'] = np.nan
+        results['score_next_day'] = np.nan
+
+        if next_timestamps is not None:
+            nc_a11 = next_col_idx.get(f'{l1b}_ask', -1); nc_b11 = next_col_idx.get(f'{l1b}_bid', -1)
+            nc_a22 = next_col_idx.get(f'{l2b}_ask', -1); nc_b22 = next_col_idx.get(f'{l2b}_bid', -1)
+            nc_a12 = next_col_idx.get(f'{l1s}_ask', -1); nc_b12 = next_col_idx.get(f'{l1s}_bid', -1)
+            nc_a21 = next_col_idx.get(f'{l2s}_ask', -1); nc_b21 = next_col_idx.get(f'{l2s}_bid', -1)
+            
+            if -1 not in [nc_a11, nc_b11, nc_a22, nc_b22, nc_a12, nc_b12, nc_a21, nc_b21]:
+                def get_next_day_exit_pnl(exit_ts):
+                    idx = next_timestamps.get_indexer([exit_ts], method='pad')[0]
+                    if idx == -1: return np.nan
+                    b11 = next_price_mat[idx, nc_b11]
+                    b22 = next_price_mat[idx, nc_b22] * discount
+                    a12 = next_price_mat[idx, nc_a12] * discount
+                    a21 = next_price_mat[idx, nc_a21]
+                    if any(math.isnan(v) or v<=0 for v in [b11,b22,a12,a21]): return np.nan
+                    return (b11 + b22) - (a12 + a21)
+
+                def get_next_day_exit_score(exit_ts):
+                    idx = next_timestamps.get_indexer([exit_ts], method='pad')[0]
+                    if idx == -1: return np.nan
+                    a11, b11 = next_price_mat[idx, nc_a11], next_price_mat[idx, nc_b11]
+                    a22, b22 = next_price_mat[idx, nc_a22], next_price_mat[idx, nc_b22]
+                    a12, b12 = next_price_mat[idx, nc_a12], next_price_mat[idx, nc_b12]
+                    a21, b21 = next_price_mat[idx, nc_a21], next_price_mat[idx, nc_b21]
+                    return fast_compute_score(a11, b11, a22, b22, a12, b12, a21, b21, discount)
+
+                next_day_date = next_timestamps[0].normalize()
+                t_next_session_end = next_day_date + pd.Timedelta(hours=14, minutes=55)
+                ep_next = get_next_day_exit_pnl(t_next_session_end)
+                if pd.notna(ep_next):
+                    results['exit_next_day_gross_pts'] = entry_pnl + ep_next
+                    results['exit_next_day_net_rmb'] = (entry_pnl + ep_next - commission_pts) * MULTIPLIER
+                
+                es_next = get_next_day_exit_score(t_next_session_end)
+                if pd.notna(es_next):
+                    results['score_next_day'] = es_next
 
         rec = {
             'time': t0, 'option_type': row_v['option_type'], 'score0': row_v['score'],
@@ -300,6 +364,15 @@ def print_characterisation(viol_df, persist_df, profit_df):
         if sub.empty: continue
         print(f"  {otype}: {len(sub)} violations  |  score mean={sub['score'].mean():.3f}  max={sub['score'].max():.3f}")
 
+    if profit_df is not None:
+        print("\n── Score Evolution (Mean) ───────────────────────────────────────")
+        cols = ['score0', 'score_15min', 'score_30min', 'score_60min', 'score_next_day']
+        available_cols = [c for c in cols if c in profit_df.columns]
+        if available_cols:
+            means = profit_df[available_cols].mean()
+            for c in available_cols:
+                print(f"  {c:15s}: {means[c]:.4f}")
+
     if profit_df is not None and 'exit_15min_net_rmb' in profit_df.columns:
         print("\n── Profitability by score band (15-min exit) ────────────────────")
         bands = [(1.0, 1.5), (1.5, 2.0), (2.0, 9.9)]
@@ -309,6 +382,17 @@ def print_characterisation(viol_df, persist_df, profit_df):
             if sub.empty: continue
             wr  = (sub['exit_15min_net_rmb'] > 0).mean()
             avg = sub['exit_15min_net_rmb'].mean()
+            print(f"  {lo:.1f} ≤ score < {hi:.1f}: n={len(sub):4d}  win={wr:.1%}  avg_net={avg:.1f} RMB")
+
+    if profit_df is not None and 'exit_next_day_net_rmb' in profit_df.columns:
+        print("\n── Profitability by score band (Next-day exit) ──────────────────")
+        bands = [(1.0, 1.5), (1.5, 2.0), (2.0, 9.9)]
+        for lo, hi in bands:
+            sub = profit_df[(profit_df['score0'] >= lo) & (profit_df['score0'] < hi) &
+                             profit_df['exit_next_day_net_rmb'].notna()]
+            if sub.empty: continue
+            wr  = (sub['exit_next_day_net_rmb'] > 0).mean()
+            avg = sub['exit_next_day_net_rmb'].mean()
             print(f"  {lo:.1f} ≤ score < {hi:.1f}: n={len(sub):4d}  win={wr:.1%}  avg_net={avg:.1f} RMB")
 
 
@@ -348,34 +432,47 @@ def main():
             if d_str not in viols_by_date: viols_by_date[d_str] = []
             viols_by_date[d_str].append(f)
 
-    for d_str, files in viols_by_date.items():
+    sorted_dates = sorted(dir_map.keys())
+
+    for d_str in sorted(viols_by_date.keys()):
+        files = viols_by_date[d_str]
         if d_str not in dir_map:
-            print(f"No price directory found for {d_str}, skipping.")
             continue
             
-        print(f"\n[{d_str}] Loading violations...")
+        print(f"Processing {d_str}...", end=' ', flush=True)
         dfs = []
         for f in files:
             dfs.append(pd.read_csv(f))
         
         viol_day = pd.concat(dfs, ignore_index=True)
         viol_day = viol_day[viol_day['score'] >= args.min_score].reset_index(drop=True)
-        if viol_day.empty: continue
+        if viol_day.empty: 
+            print("No violations.")
+            continue
         all_viols.append(viol_day)
         
-        print(f"[{d_str}] Loading price data...")
         price_day = load_price_data_for_day(dir_map[d_str], args.symbol)
-        if price_day.empty: continue
+        if price_day.empty: 
+            print("No price data.")
+            continue
         
         if args.mode in ('persist', 'full'):
-            print(f"[{d_str}] Running persistence...")
             p_df = run_persistence_for_day(viol_day, price_day, args.net_carry)
             all_persist.append(p_df)
             
             if args.mode == 'full':
-                print(f"[{d_str}] Running profitability...")
-                prof_df = run_profitability_for_day(viol_day, price_day, p_df, args.net_carry)
+                next_price_day = None
+                try:
+                    curr_idx = sorted_dates.index(d_str)
+                    if curr_idx + 1 < len(sorted_dates):
+                        next_d_str = sorted_dates[curr_idx + 1]
+                        next_price_day = load_price_data_for_day(dir_map[next_d_str], args.symbol)
+                except ValueError:
+                    pass
+                    
+                prof_df = run_profitability_for_day(viol_day, price_day, p_df, args.net_carry, next_price_day)
                 all_profit.append(prof_df)
+        print("Done.")
 
     if not all_persist:
         print("No valid results computed.")
