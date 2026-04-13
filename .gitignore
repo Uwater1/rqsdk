@@ -5,4 +5,7 @@ output.txt
 
 .gemini/
 gha-creds-*.json
-basic/
+basic/*
+!basic/macro/
+!basic/repo/
+!basic/vix/
