@@ -29,53 +29,6 @@ def save_data(df, path, format='csv'):
     else:
         df.to_csv(path)
 
-def download_market_data():
-    print("Downloading Market Data...")
-    
-    # 1. Macro Economy
-    macro_dir = os.path.join("basic", "macro")
-    ensure_dir(macro_dir)
-    
-    if not os.path.exists(os.path.join(macro_dir, "reserve_ratio.csv")):
-        try:
-            print("  Fetching Reserve Ratio...")
-            df_rr = rqdatac.econ.get_reserve_ratio(start_date=START_DATE, end_date=END_DATE)
-            save_data(df_rr, os.path.join(macro_dir, "reserve_ratio.csv"))
-        except Exception as e:
-            print(f"  Error fetching reserve ratio: {e}")
-
-    if not os.path.exists(os.path.join(macro_dir, "money_supply.csv")):
-        try:
-            print("  Fetching Money Supply...")
-            df_ms = rqdatac.econ.get_money_supply(start_date=START_DATE, end_date=END_DATE)
-            save_data(df_ms, os.path.join(macro_dir, "money_supply.csv"))
-        except Exception as e:
-            print(f"  Error fetching money supply: {e}")
-
-    # 2. Repo (Shibor)
-    repo_dir = os.path.join("basic", "repo")
-    ensure_dir(repo_dir)
-    if not os.path.exists(os.path.join(repo_dir, "shibor.csv")):
-        try:
-            print("  Fetching Interbank Offered Rate (Shibor)...")
-            df_shibor = rqdatac.get_interbank_offered_rate(start_date=START_DATE, end_date=END_DATE)
-            save_data(df_shibor, os.path.join(repo_dir, "shibor.csv"))
-        except Exception as e:
-            print(f"  Error fetching shibor: {e}")
-
-    # 3. VIX Index
-    vix_dir = os.path.join("basic", "vix")
-    ensure_dir(vix_dir)
-    vix_codes = [f"VX00{i:02d}.RI" for i in range(1, 13)]
-    for vix_code in vix_codes:
-        if not os.path.exists(os.path.join(vix_dir, f"{vix_code}.csv")):
-            try:
-                print(f"  Fetching VIX Index: {vix_code}...")
-                df_vix = rqdatac.get_price(vix_code, start_date=START_DATE, end_date=END_DATE)
-                save_data(df_vix, os.path.join(vix_dir, f"{vix_code}.csv"))
-            except Exception as e:
-                print(f"  Error fetching VIX {vix_code}: {e}")
-
 def download_stock_data():
     print("Downloading Stock-Specific Data (Incremental & Parquet)...")
     
@@ -155,6 +108,5 @@ def download_stock_data():
                 print(f"    Error fetching ESG for {order_book_id}: {e}")
 
 if __name__ == "__main__":
-    download_market_data()
     download_stock_data()
     print("Data download completed.")
