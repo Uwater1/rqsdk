@@ -7,7 +7,7 @@ from datetime import datetime
 rqdatac.init()
 
 # Define date range for maximum history
-START_DATE = "2010-01-01"
+START_DATE = "2015-01-01"
 END_DATE = datetime.now().strftime("%Y-%m-%d")
 
 def ensure_dir(path):
