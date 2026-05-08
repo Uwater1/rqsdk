@@ -13,22 +13,22 @@ COMMISSION = 2.0  # Per contract
 # Global paths
 PATH_PARQUET = "synthetic_options_300ETF.parquet"
 ETF_NAME = "300ETF"
-PATH_ETF = "data/510300_1d.parquet"
+PATH_ETF = "../data/510300_1d.parquet"
 
 def select_etf(choice):
     global ETF_NAME, PATH_PARQUET, PATH_ETF
     if choice == "50":
         ETF_NAME = "50ETF"
         PATH_PARQUET = "synthetic_options_50ETF.parquet"
-        PATH_ETF = "data/50ETF_1d.parquet"
+        PATH_ETF = "../data/50ETF_1d.parquet"
     elif choice == "500":
         ETF_NAME = "500ETF"
         PATH_PARQUET = "synthetic_options_500ETF.parquet"
-        PATH_ETF = "data/500ETF_1d.parquet"
+        PATH_ETF = "../data/500ETF_1d.parquet"
     else:
         ETF_NAME = "300ETF"
         PATH_PARQUET = "synthetic_options_300ETF.parquet"
-        PATH_ETF = "data/510300_1d.parquet"
+        PATH_ETF = "../data/510300_1d.parquet"
 
 def load_data():
     if not os.path.exists(PATH_PARQUET):

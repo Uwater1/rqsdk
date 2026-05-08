@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import pandas_ta as ta
 import argparse
 from datetime import datetime, timedelta
 import os
@@ -10,28 +11,28 @@ COMMISSION     = 2.0
 
 # Global paths that will be updated by select_etf
 ETF_NAME = "300ETF"
-PATH_INST = "data/300ETF_instruments.parquet"
-PATH_OPT  = "data/300ETF_historical_prices.parquet"
-PATH_ETF  = "data/510300_1d.parquet"
+PATH_INST = "../data/300ETF_instruments.parquet"
+PATH_OPT  = "../data/300ETF_historical_prices.parquet"
+PATH_ETF  = "../data/510300_1d.parquet"
 
 def select_etf(choice):
     global ETF_NAME, PATH_INST, PATH_OPT, PATH_ETF
     if choice == "50":
         ETF_NAME = "50ETF"
-        PATH_INST = "data/50ETF_instruments.parquet"
-        PATH_OPT  = "data/50ETF_historical_prices.parquet"
-        PATH_ETF  = "data/50ETF_1d.parquet"
+        PATH_INST = "../data/50ETF_instruments.parquet"
+        PATH_OPT  = "../data/50ETF_historical_prices.parquet"
+        PATH_ETF  = "../data/50ETF_1d.parquet"
     elif choice == "500":
         ETF_NAME = "500ETF"
-        PATH_INST = "data/500ETF_instruments.parquet"
-        PATH_OPT  = "data/500ETF_historical_prices.parquet"
-        PATH_ETF  = "data/500ETF_1d.parquet"
+        PATH_INST = "../data/500ETF_instruments.parquet"
+        PATH_OPT  = "../data/500ETF_historical_prices.parquet"
+        PATH_ETF  = "../data/500ETF_1d.parquet"
     else:
         # Default 300
         ETF_NAME = "300ETF"
-        PATH_INST = "data/300ETF_instruments.parquet"
-        PATH_OPT  = "data/300ETF_historical_prices.parquet"
-        PATH_ETF  = "data/510300_1d.parquet"
+        PATH_INST = "../data/300ETF_instruments.parquet"
+        PATH_OPT  = "../data/300ETF_historical_prices.parquet"
+        PATH_ETF  = "../data/510300_1d.parquet"
 
 def load_data():
     inst = pd.read_parquet(PATH_INST)
@@ -53,6 +54,18 @@ def load_data():
             opt.drop(columns=[raw], inplace=True)
 
     etf = etf.set_index("date").sort_index()
+    
+    # Calculate indicators
+    etf["sma20"] = ta.sma(etf["close"], length=20)
+    etf["rsi14"] = ta.rsi(etf["close"], length=14)
+    
+    # Bollinger Bands
+    bb = ta.bbands(etf["close"], length=20, std=2)
+    etf["bbu20"] = bb["BBU_20_2.0_2.0"]
+    
+    # ROC (Rate of Change) - returns percentage values (e.g., 5.0 for 5%)
+    etf["roc20"] = ta.roc(etf["close"], length=20)
+    
     return inst, opt, etf
 
 def get_cycles(opt, etf, years=None):
@@ -143,12 +156,23 @@ def filter_cycle(etf, entry_date):
     """
     User-defined filter for trading cycles. 
     Return True to include the cycle, False to skip.
-    Example:
-        # Only trade when ETF is above 20-day SMA
-        sma20 = etf.loc[:entry_date, "close"].tail(20).mean()
-        return etf.loc[entry_date.normalize(), "close"] > sma20
+
+    Using Combined Filter: 14-day RSI < 66 AND Close < Upper Bollinger Band (20, 2)
     """
-    return True
+    idx = entry_date.normalize()
+    if idx not in etf.index:
+        return False
+
+    rsi = etf.loc[idx, "rsi14"]
+    bbu = etf.loc[idx, "bbu20"]
+
+    if pd.isna(rsi) or pd.isna(bbu):
+        return False
+
+    cond1 = rsi < 66.0
+    cond2 = etf.loc[idx, "close"] < bbu
+
+    return cond1 and cond2
 
 def analyze_otm_levels(years=None):
     print(f"Analyzing {ETF_NAME}...")
@@ -159,17 +183,20 @@ def analyze_otm_levels(years=None):
     
     levels = [0, 1, 2, 3, 4, 5]
     results_data = []
+    filter_effectiveness_data = []
 
     for option_type in ["C", "P"]:
         level_metrics = {level: {"wins": 0, "total_wins": 0, "pnls": [], "count": 0} for level in levels}
+        filtered_metrics = {level: {"wins": 0, "total_wins": 0, "pnls": [], "count": 0} for level in levels}
         
         for cyc in cycles:
             entry = cyc["entry_date"]
             expiry = cyc["expiry_date"]
             
             # Apply cycle filter only to Short Call
-            if option_type == "C" and not filter_cycle(etf, entry):
-                continue
+            pass_filter = True
+            if option_type == "C":
+                pass_filter = filter_cycle(etf, entry)
             
             etf_expiry_dates = etf.index[etf.index <= expiry]
             if etf_expiry_dates.empty:
@@ -201,14 +228,20 @@ def analyze_otm_levels(years=None):
                     exec_px = entry_mid * (1 + SPREAD_HALF)
                     net_rmb = (intrinsic - exec_px) * mult - COMMISSION
                 
-                level_metrics[level]["count"] += 1
-                level_metrics[level]["pnls"].append(net_rmb)
-                
-                if net_rmb > 0:
-                    level_metrics[level]["wins"] += 1
-                    
-                if intrinsic == 0.0:
-                    level_metrics[level]["total_wins"] += 1
+                if pass_filter:
+                    level_metrics[level]["count"] += 1
+                    level_metrics[level]["pnls"].append(net_rmb)
+                    if net_rmb > 0:
+                        level_metrics[level]["wins"] += 1
+                    if intrinsic == 0.0:
+                        level_metrics[level]["total_wins"] += 1
+                elif option_type == "C":
+                    filtered_metrics[level]["count"] += 1
+                    filtered_metrics[level]["pnls"].append(net_rmb)
+                    if net_rmb > 0:
+                        filtered_metrics[level]["wins"] += 1
+                    if intrinsic == 0.0:
+                        filtered_metrics[level]["total_wins"] += 1
                     
         for level in levels:
             metrics = level_metrics[level]
@@ -230,6 +263,23 @@ def analyze_otm_levels(years=None):
                 "Expected Return (RMB)": round(expected_return, 2),
                 "Max Loss (RMB)": round(max_loss, 2)
             })
+
+        # Process filtered metrics for Short Call
+        if option_type == "C":
+            for level in levels:
+                fm = filtered_metrics[level]
+                if fm["count"] == 0:
+                    continue
+                f_winrate = fm["wins"] / fm["count"]
+                f_total_winrate = fm["total_wins"] / fm["count"]
+                f_ev = np.mean(fm["pnls"])
+                filter_effectiveness_data.append({
+                    "OTM Level": level,
+                    "Cycles": fm["count"],
+                    "Winrate": f"{f_winrate:.2%}",
+                    "Expire Worthless Rate": f"{f_total_winrate:.2%}",
+                    "Expected Return (RMB)": round(f_ev, 2)
+                })
             
     df = pd.DataFrame(results_data)
     
@@ -239,6 +289,15 @@ def analyze_otm_levels(years=None):
     print("="*95)
     print(df.to_string(index=False))
     print("="*95)
+    
+    if filter_effectiveness_data:
+        f_df = pd.DataFrame(filter_effectiveness_data)
+        f_title = "FILTER EFFECTIVENESS (FILTERED OUT SHORT CALL CYCLES)"
+        print("\n" + "="*95)
+        print(" " * ((95 - len(f_title)) // 2) + f_title)
+        print("="*95)
+        print(f_df.to_string(index=False))
+        print("="*95)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Research OTM Alpha (Short Call & Long Put) for each level of options.")

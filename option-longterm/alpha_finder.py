@@ -3,7 +3,7 @@ import numpy as np
 from datetime import timedelta
 
 class AlphaFinder:
-    def __init__(self, data_path='data/510300_1d.parquet', unit=0.05):
+    def __init__(self, data_path='../data/510300_1d.parquet', unit=0.05):
         self.data_path = data_path
         self.unit = unit  # ETF unit roughly representing 50 points of index
         self.df = self._load_data()

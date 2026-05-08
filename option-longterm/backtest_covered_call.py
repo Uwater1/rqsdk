@@ -40,32 +40,32 @@ PUT_BUY_LEVEL  = 1           # 0=closest ITM, 1=closest OTM
 # ── Underlying Config (Dynamic based on CLI) ───────────────────────────────────
 # Default: 300ETF
 ETF_NAME = "300ETF"
-PATH_INST = "data/300ETF_instruments.parquet"
-PATH_OPT  = "data/300ETF_historical_prices.parquet"
-PATH_ETF  = "data/510300_1d.parquet"
-PATH_IV_CACHE = "data/30d_iv_cache_300.parquet"
+PATH_INST = "../data/300ETF_instruments.parquet"
+PATH_OPT  = "../data/300ETF_historical_prices.parquet"
+PATH_ETF  = "../data/510300_1d.parquet"
+PATH_IV_CACHE = "../data/30d_iv_cache_300.parquet"
 
 def select_underlying(etf_choice):
     global ETF_NAME, PATH_INST, PATH_OPT, PATH_ETF, PATH_IV_CACHE
     if etf_choice == "50":
         ETF_NAME = "50ETF"
-        PATH_INST = "data/50ETF_instruments.parquet"
-        PATH_OPT  = "data/50ETF_historical_prices.parquet"
-        PATH_ETF  = "data/50ETF_1d.parquet"
-        PATH_IV_CACHE = "data/30d_iv_cache_50.parquet"
+        PATH_INST = "../data/50ETF_instruments.parquet"
+        PATH_OPT  = "../data/50ETF_historical_prices.parquet"
+        PATH_ETF  = "../data/50ETF_1d.parquet"
+        PATH_IV_CACHE = "../data/30d_iv_cache_50.parquet"
     elif etf_choice == "500":
         ETF_NAME = "500ETF"
-        PATH_INST = "data/500ETF_instruments.parquet"
-        PATH_OPT  = "data/500ETF_historical_prices.parquet"
-        PATH_ETF  = "data/500ETF_1d.parquet"
-        PATH_IV_CACHE = "data/30d_iv_cache_500.parquet"
+        PATH_INST = "../data/500ETF_instruments.parquet"
+        PATH_OPT  = "../data/500ETF_historical_prices.parquet"
+        PATH_ETF  = "../data/500ETF_1d.parquet"
+        PATH_IV_CACHE = "../data/30d_iv_cache_500.parquet"
     else:
         # Default 300
         ETF_NAME = "300ETF"
-        PATH_INST = "data/300ETF_instruments.parquet"
-        PATH_OPT  = "data/300ETF_historical_prices.parquet"
-        PATH_ETF  = "data/510300_1d.parquet"
-        PATH_IV_CACHE = "data/30d_iv_cache_300.parquet"
+        PATH_INST = "../data/300ETF_instruments.parquet"
+        PATH_OPT  = "../data/300ETF_historical_prices.parquet"
+        PATH_ETF  = "../data/510300_1d.parquet"
+        PATH_IV_CACHE = "../data/30d_iv_cache_300.parquet"
     print(f"  Selected Underlying: {ETF_NAME}")
     print(f"  ETF Data Path      : {PATH_ETF}")
 

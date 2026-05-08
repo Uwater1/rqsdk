@@ -11,28 +11,28 @@ COMMISSION     = 2.0
 
 # Global paths that will be updated by select_etf
 ETF_NAME = "300ETF"
-PATH_INST = "data/300ETF_instruments.parquet"
-PATH_OPT  = "data/300ETF_historical_prices.parquet"
-PATH_ETF  = "data/510300_1d.parquet"
+PATH_INST = "../data/300ETF_instruments.parquet"
+PATH_OPT  = "../data/300ETF_historical_prices.parquet"
+PATH_ETF  = "../data/510300_1d.parquet"
 
 def select_etf(choice):
     global ETF_NAME, PATH_INST, PATH_OPT, PATH_ETF
     if choice == "50":
         ETF_NAME = "50ETF"
-        PATH_INST = "data/50ETF_instruments.parquet"
-        PATH_OPT  = "data/50ETF_historical_prices.parquet"
-        PATH_ETF  = "data/50ETF_1d.parquet"
+        PATH_INST = "../data/50ETF_instruments.parquet"
+        PATH_OPT  = "../data/50ETF_historical_prices.parquet"
+        PATH_ETF  = "../data/50ETF_1d.parquet"
     elif choice == "500":
         ETF_NAME = "500ETF"
-        PATH_INST = "data/500ETF_instruments.parquet"
-        PATH_OPT  = "data/500ETF_historical_prices.parquet"
-        PATH_ETF  = "data/500ETF_1d.parquet"
+        PATH_INST = "../data/500ETF_instruments.parquet"
+        PATH_OPT  = "../data/500ETF_historical_prices.parquet"
+        PATH_ETF  = "../data/500ETF_1d.parquet"
     else:
         # Default 300
         ETF_NAME = "300ETF"
-        PATH_INST = "data/300ETF_instruments.parquet"
-        PATH_OPT  = "data/300ETF_historical_prices.parquet"
-        PATH_ETF  = "data/510300_1d.parquet"
+        PATH_INST = "../data/300ETF_instruments.parquet"
+        PATH_OPT  = "../data/300ETF_historical_prices.parquet"
+        PATH_ETF  = "../data/510300_1d.parquet"
 
 def load_data():
     inst = pd.read_parquet(PATH_INST)
